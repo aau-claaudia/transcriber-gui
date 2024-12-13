@@ -18,10 +18,6 @@ function App() {
     }
     const getInitialArrayState = (keyname) => {
         const dataFromSession = sessionStorage.getItem(keyname);
-        if (keyname === "files") {
-            console.log("loading files from session")
-            console.log(dataFromSession)
-        }
         return dataFromSession ? JSON.parse(dataFromSession) : [];
     }
     const getInitialBooleanState = (keyname, state) => {
@@ -90,14 +86,14 @@ function App() {
 
     // Function to poll the server for transcription status
     const pollTranscriptionStatus = useCallback((taskId) => {
-        console.log("Running poll funtion.")
+        console.debug("Running poll funtion.")
         fetch(`http://localhost:8000/poll-transcription-status/${taskId}/`)
             .then(response => response.json())
             .then(data => {
                 // debug logging the data returned from the server
-                console.log('Task status:', data);
+                console.debug('Task status:', data);
                 if (data.state === 'SUCCESS') {
-                    console.log('Task result:', data.result);
+                    console.debug('Task result:', data.result);
                     setResults(data.result);
                     setTranscriptionId(null);
                     setTranscribing(false);
@@ -131,7 +127,7 @@ function App() {
 
     // effect for starting to poll the server for transcription status if there is an active taskID
     useEffect(() => {
-        console.log("Checking for active transcription ID.");
+        console.debug("Checking for active transcription ID.");
         transcriptionId ? setTimeout(() => pollTranscriptionStatus(transcriptionId), 5000) : console.log("No active transcription task to poll.")
     }, [transcriptionId, pollTranscriptionStatus])
 
@@ -190,7 +186,7 @@ function App() {
                     'X-CSRFToken': csrfToken
                 }
             });
-            console.log('the transcription id is: ' + response.data.task_id)
+            console.debug('the transcription id is: ' + response.data.task_id)
             setTranscriptionId(response.data.task_id)
         } catch (error) {
             console.error('Error uploading file:', error);
