@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -7,6 +8,10 @@ import os
 from django.http import JsonResponse
 from rest_framework.views import APIView
 from .tasks import transcription_task
+
+def index(request):
+    print(request)
+    return render(request, 'frontend/build/index.html')
 
 class FileUploadView(APIView):
     parser_classes = (MultiPartParser, FormParser)

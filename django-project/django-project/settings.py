@@ -23,9 +23,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-wr3t_w3m5qmgzn(4&f*5uhq*kqd^f21eu!p84jl0dw!8y*=e=^'
 
 # SECURITY WARNING: don't run with debug turned on in production!
+# Use debug flag to enable debug logging from the Django server and the console.debug() logging in development
+# TODO: disable debug before tagging
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost']
 
 
 # Application definition
@@ -58,7 +60,7 @@ ROOT_URLCONF = 'django-project.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -119,17 +121,16 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-#STATIC_URL = 'static/'
-
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-CORS_ORIGIN_ALLOW_ALL = True  # For development purposes, allow all origins
+#CORS_ORIGIN_ALLOW_ALL = True  # For development purposes, allow all origins
+
+STATICFILES_DIRS = [BASE_DIR / 'frontend' / 'build' / 'static']
 
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
 
 MEDIA_URL = '/media/'
 
@@ -143,7 +144,8 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'  # Adjust as needed (e.g., 'Strict' or 'None' for cross-origin)
 CORS_ALLOW_CREDENTIALS = True
 CORS_ORIGIN_WHITELIST = [
-    'http://localhost:3000',  # Add your frontend URL, react development server
+    'http://localhost:3000',  # frontend URL, react development server
+    'http://localhost:8000'   # Django server
 ]
 
 # Add Celery configuration

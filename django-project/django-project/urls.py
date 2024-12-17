@@ -17,14 +17,14 @@ Including another URLconf
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import path
-from transcriber.views import FileUploadView, poll_transcription_status
+from django.urls import path, re_path
+from transcriber.views import FileUploadView, poll_transcription_status, index
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('upload/', FileUploadView.as_view(), name='file_upload'),
     path('poll-transcription-status/<str:task_id>/', poll_transcription_status, name='poll_transcription_status'),
+    re_path(r'^.*$', index, name='index'),  # Catch-all pattern to serve the React app
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
