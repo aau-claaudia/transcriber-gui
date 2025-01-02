@@ -137,8 +137,8 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 FILE_UPLOAD_MAX_MEMORY_SIZE = 20000000000
 
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ORIGIN_ALLOW_ALL = True  # allow all origins
+#CORS_ALLOW_ALL_ORIGINS = True
+#CORS_ORIGIN_ALLOW_ALL = True  # allow all origins
 SESSION_COOKIE_SECURE = True  # Set to True in production with HTTPS
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'None'  # Adjust as needed (e.g., 'Strict' or 'None' for cross-origin)
