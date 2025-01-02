@@ -182,9 +182,9 @@ function App() {
                     const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
                     setProgress(percentCompleted);
                 },
-                headers: {
-                    'X-CSRFToken': csrfToken
-                }
+                //headers: {
+                //    'X-CSRFToken': csrfToken
+                //}
             });
             console.debug('the transcription id is: ' + response.data.task_id)
             setTranscriptionId(response.data.task_id)
