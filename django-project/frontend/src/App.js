@@ -110,9 +110,9 @@ function App() {
                     setTimeout(() => pollTranscriptionStatus(taskId), 5000);
                     let dataText = "";
                     if (dataSize > 1000000000) {
-                        dataText = dataSize / 1000000000 + " GB";
+                        dataText = (dataSize / 1000000000).toFixed(2) + " GB";
                     } else {
-                        dataText = dataSize / 1000000 + " MB";
+                        dataText = (dataSize / 1000000).toFixed(2) + " MB";
                     }
                     let duration = Date.now() - transcriptionStartTime;
                     let waitingText = "Transcribing " + dataText + " of Data. The transcription time on a GPU can be roughly estimated to 1 minute pr. 1 MB of data. ";
