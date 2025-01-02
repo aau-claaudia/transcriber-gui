@@ -126,8 +126,6 @@ USE_TZ = True
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-#CORS_ORIGIN_ALLOW_ALL = True  # For development purposes, allow all origins
-
 STATICFILES_DIRS = [BASE_DIR / 'frontend' / 'build' / 'static']
 
 STATIC_URL = '/static/'
@@ -139,14 +137,16 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 FILE_UPLOAD_MAX_MEMORY_SIZE = 20000000000
 
-# Ensure these settings are configured correctly
+
+# CORS_ORIGIN_ALLOW_ALL = True  # For development purposes, allow all origins
 SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'  # Adjust as needed (e.g., 'Strict' or 'None' for cross-origin)
 CORS_ALLOW_CREDENTIALS = True
 CORS_ORIGIN_WHITELIST = [
     'http://localhost:3000',  # frontend URL, react development server
-    'http://localhost:8000'   # Django server
+    'http://localhost:8000', # Django server
+    'http://localhost:8080' # React Nginx server
 ]
 
 # Add Celery configuration
