@@ -18,12 +18,14 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, re_path
-from transcriber.views import FileUploadView, poll_transcription_status, index
+from transcriber.views import FileUploadView, poll_transcription_status, index, serve_file
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('upload/', FileUploadView.as_view(), name='file_upload'),
     path('poll-transcription-status/<str:task_id>/', poll_transcription_status, name='poll_transcription_status'),
+    re_path(r'^media/(?P<path>.*)$', serve_file, name='serve_media_file'), # pattern for download
+    re_path(r'^work/(?P<path>.*)$', serve_file, name='serve_work_file'), # pattern for download
     re_path(r'^.*$', index, name='index'),  # Catch-all pattern to serve the React app
 ]
 

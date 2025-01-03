@@ -1,11 +1,10 @@
 from django.conf import settings
 from django.shortcuts import render
-from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from .serializers import FileUploadSerializer, MultipleFileUploadSerializer
 import os
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse, Http404
 from rest_framework.views import APIView
 from .tasks import transcription_task
 
@@ -77,6 +76,28 @@ def poll_transcription_status(request, task_id):
             'status': str(task_result.info),  # This is the exception raised
         }
     return JsonResponse(response)
+
+def serve_file(request, path):
+    # Determine the base directory based on the URL prefix
+    if request.path.startswith('/media/'):
+        base_dir = settings.MEDIA_ROOT
+    elif request.path.startswith('/work/'):
+        base_dir = '/work/'  # Replace with the actual path
+    else:
+        raise Http404("File not found")
+
+    # Construct the full file path
+    file_path = os.path.join(base_dir, path)
+
+    # Check if the file exists
+    if not os.path.exists(file_path):
+        raise Http404("File not found")
+
+    # Open the file and create the response
+    with open(file_path, 'rb') as f:
+        response = HttpResponse(f.read(), content_type='application/octet-stream')
+        response['Content-Disposition'] = 'attachment; filename="{}"'.format(os.path.basename(file_path))
+        return response
 
 def delete_all_files_in_directory(directory):
     # List all files and directories in the specified directory
