@@ -325,7 +325,7 @@ function App() {
                                     <td className='file-name' title={key}>{key}</td>
                                     {groupedFiles[key].map((result, subIndex) => (
                                         <td key={subIndex}>
-                                            <a href={result.file_url} rel="noreferrer" className="button" target="_blank" download>
+                                            <a href={result.file_url} rel="noreferrer" className="button" download>
                                                 {getFileExtension(result.file_name)}
                                             </a>
                                         </td>
