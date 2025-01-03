@@ -341,7 +341,7 @@ function App() {
                             <h3>Zip file</h3>
                             <div>
                                 <p>The zip file contains all the transcribed files for easy download.</p>
-                                <a href={zipFile.file_url} target="_blank" rel="noreferrer">Download zip file.</a>
+                                <a href={zipFile.file_url} rel="noreferrer" download>Download zip file.</a>
                             </div>
                         </div>
                     )}
@@ -353,7 +353,7 @@ function App() {
                         </p>
                         {logFiles.map((result, index) => (
                             <div key={index}>
-                                <a href={result.file_url} target="_blank" rel="noreferrer">{result.file_name}</a>
+                                <a href={result.file_url} rel="noreferrer" download>{result.file_name}</a>
                             </div>
                         ))}
                     </div>
