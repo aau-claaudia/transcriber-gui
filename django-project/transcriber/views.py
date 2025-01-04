@@ -82,7 +82,7 @@ def serve_file(request, path):
     if request.path.startswith('/media/'):
         base_dir = settings.MEDIA_ROOT
     elif request.path.startswith('/work/'):
-        base_dir = '/work/'  # Replace with the actual path
+        base_dir = '/work'  # the files are saved here on UCloud
     else:
         raise Http404("File not found")
 
