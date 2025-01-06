@@ -22,8 +22,6 @@ def transcription_task():
     except subprocess.CalledProcessError as e:
         write_transcriber_output(e.stderr, e.stdout, transcriber_output_file)
 
-    # TODO: save transcribed files to UCLoud job mounted folder
-
     return "Task completed"
 
 def write_transcriber_output(error, output, transcriber_output_file):
