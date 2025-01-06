@@ -1,5 +1,9 @@
 # Transcriber-gui
 Graphical User Interface for the transcriber application. The GUI is built using React, Django and Celery.
+The application uses a task manager in the backend for the long-running transcription task. This way there will not be long-running http requests, which would break during attempted user reloading of the page.
+The following figure shows a sequence diagram of the interaction.
+
+![Sequence Diagram](documentation/sequence-diagram.svg)
 
 ### Setting up the environment for development
 
