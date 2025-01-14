@@ -50,6 +50,7 @@ code {
 .transcribe-button {
   display: inline-block;
   margin-top: 2%;
+  margin-right: 2%;
   padding: 10px 20px; /* Adjust padding for medium size */
   font-size: 16px; /* Adjust font size for medium size */
   font-weight: bold;
@@ -150,6 +151,14 @@ a.button:hover {
 
 .fileTypeError {
   color: red;
+}
+
+.ucloud-file {
+  color: blue;
+  border: 1px solid blue;
+  border-radius: 10px;
+  padding: 2px 5px;
+  margin-left: 5px;
 }
 
 .helpText {

@@ -3,6 +3,7 @@ import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
 import Spinner  from './spinners'
 import { csrfToken } from './csrf';
+import Settings from "./Settings";
 
 function App() {
     const formatDuration = (duration) => {
@@ -42,6 +43,8 @@ function App() {
     }
 
     const [files, setFiles] = useState([]);
+    const [scannedFiles, setScannedFiles] = useState([]);
+    const [scannedAndLinkedFiles, setScannedAndLinkedFiles] = useState([]);
     const [rejected, setRejected] = useState([]);
     const [results, setResults] = useState(getInitialArrayState("results"));
     const [transcribing, setTranscribing] = useState(getInitialBooleanState("transcribing",false)); // State to control spinner visibility
@@ -52,6 +55,8 @@ function App() {
     const [statusText, setStatusText] = useState(getInitialTranscriptionStatus);
     const [dataSize, setDataSize] = useState(getInitialDataSize);
     const [transcriptionStartTime, setTranscriptionStartTime] = useState(getInitialTranscriptionStartTime);
+    const [scanning, setScanning] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
 
     useEffect(() => {
         sessionStorage.setItem("results", JSON.stringify(results))
@@ -63,11 +68,13 @@ function App() {
         sessionStorage.setItem("transcribing", JSON.stringify(transcribing))
     }, [transcribing]);
     useEffect(() => {
-        // file objects cannot be serialized properly with JSON.stringify. If we really want this we must pick metadata or store or using library
-        if (files.length === 0) {
+        // file objects cannot be serialized properly with JSON.stringify. If we really want this serialization to the session we must pick metadata or store using library
+        if (files.length === 0 && scannedAndLinkedFiles.length === 0) {
             setButtonDisabled(true);
+        } else if (!transcribing) {
+            setButtonDisabled(false);
         }
-    }, [files]);
+    }, [files, scannedAndLinkedFiles]);
     useEffect(() => {
         sessionStorage.setItem("transcriptionId", JSON.stringify(transcriptionId))
     }, [transcriptionId]);
@@ -84,6 +91,11 @@ function App() {
         sessionStorage.setItem("transcriptionStartTime", JSON.stringify(transcriptionStartTime))
     }, [transcriptionStartTime]);
 
+    // Function for showing or hiding the settings
+    const showOrHideSettings = () => {
+        setShowSettings(!showSettings);
+    }
+
     // Function to poll the server for transcription status
     const pollTranscriptionStatus = useCallback((taskId) => {
         console.debug("Running poll funtion.")
@@ -99,6 +111,9 @@ function App() {
                     setTranscribing(false);
                     setDataSize(0);
                     setTranscriptionStartTime(null);
+                    if (files.length === 0 && scannedAndLinkedFiles.length === 0) {
+                        setButtonDisabled(true);
+                    }
                 } else if (data.state === 'FAILURE') {
                     setTranscriptionId(null);
                     setTranscribing(false);
@@ -166,6 +181,7 @@ function App() {
         e.preventDefault();
         setButtonDisabled(true); // Disable the button
         setUploading(true)
+        setShowSettings(false); // hide settings
 
         let totalDataSizeBytes = 0;
         const formData = new FormData();
@@ -173,6 +189,10 @@ function App() {
             formData.append('files', file);
             totalDataSizeBytes += file.size;
         });
+        // also sum datasize for linked UCloud files
+        scannedAndLinkedFiles.forEach((file) => {
+            totalDataSizeBytes += file.size;
+        })
         setDataSize(totalDataSizeBytes);
         setTranscriptionStartTime(Date.now())
 
@@ -197,8 +217,49 @@ function App() {
             setProgress(0);
             setFiles([]);
             setRejected([]);
+            setScannedAndLinkedFiles([]);
         }
     };
+
+    const onScan = async (e) => {
+        e.preventDefault();
+        setScanning(true); // Disable the scan button
+        try {
+            const response = await fetch('http://localhost:8000/scan-files/');
+            const fileList = await response.json();
+            //console.debug('Scanned files:', fileList);
+            setScannedFiles(fileList)
+        } catch (error) {
+            console.error('Error scanning UCloud mounted folder for upload files:', error);
+        } finally {
+            setScanning(false);
+        }
+    }
+
+    const onAddUcloudFiles = async (filesToAdd) => {
+        if (filesToAdd?.length > 0) {
+            let formData = new FormData();
+            formData.append('files', JSON.stringify(filesToAdd));
+            try {
+                // call view to create the symlinks
+                const response = await axios.post('http://localhost:8000/link-files/', formData);
+                // add the files to setScannedAndLinkedFiles
+                if (response.status === 200) {
+                    let newFiles = filesToAdd.filter((file) =>
+                        !scannedAndLinkedFiles.some(scannedFile => scannedFile.filepath === file.filepath));
+                    setScannedAndLinkedFiles(previousFiles => [
+                        ...previousFiles,
+                        ...newFiles
+                    ])
+                } else {
+                    console.error("Error from server when creating links to UCLoud files.")
+                }
+            } catch (error) {
+                console.error('Error creating symlinks for UCloud files:', error);
+            } finally {
+            }
+        }
+    }
 
     const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
         if (acceptedFiles?.length) {
@@ -217,6 +278,26 @@ function App() {
         setFiles(files => files.filter(file => file.name !== name))
     }
 
+    const removeUCloudLinkedFile = async (path) => {
+        if (path) {
+            let formData = new FormData();
+            formData.append('path', path);
+            try {
+                // call view to remove the symbolic link to the UCloud file
+                const response = await axios.post('http://localhost:8000/remove-link/', formData);
+                if (response.status === 200) {
+                    // remove the file in the list of linked files to update the UI
+                    setScannedAndLinkedFiles(files => files.filter(file => file.target_path_sym_link !== path))
+                } else {
+                    console.error("Error from server when removing link to UCLoud file.")
+                }
+            } catch (error) {
+                console.error('Error removing symlink for UCloud file:', error);
+            } finally {
+            }
+        }
+    }
+
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
         accept: {
@@ -230,7 +311,7 @@ function App() {
 
     return (
         <div className="App">
-            <h1>Transcriber Prototype</h1>
+            <h1>Transcriber</h1>
             <div {...getRootProps({className: 'dropzone'})}>
                 <input {...getInputProps()} />
                 {
@@ -243,12 +324,14 @@ function App() {
                 (!transcribing && results.length === 0) && (
                     <p className='helpText'>
                         This application can help you transcribe audio and video files.
-                        When files are dropped into the area above the 'Selected files' list shows which files are selected for transcription.
-                        When you are happy with the selection press the 'Transcribe' button to start a transcription on the selected files.
+                        When files are dropped into the area above the 'Selected files' list shows which files are selected
+                        for transcription.
+                        When you are happy with the selection press the 'Transcribe' button to start a transcription on the
+                        selected files.
                     </p>
                 )
             }
-            {files.length > 0 && (
+            {(files.length > 0 || scannedAndLinkedFiles.length > 0 ) > 0 && (
                 <h2>Selected files</h2>
             )}
             {
@@ -256,6 +339,16 @@ function App() {
                     <ul key={index}>
                         <li key={file.name + index}> {file.name} &nbsp;
                             <button type='button' onClick={() => removeFile(file.name)}>Remove</button>
+                        </li>
+                    </ul>
+                ))
+            }
+            {
+                scannedAndLinkedFiles.length > 0 && scannedAndLinkedFiles.map((file, index) => (
+                    <ul key={index}>
+                        <li key={file.name + index}> {file.name} &nbsp;
+                            <button type='button' onClick={() => removeUCloudLinkedFile(file.target_path_sym_link)}>Remove</button>
+                            <span className="ucloud-file">UCloud file</span>
                         </li>
                     </ul>
                 ))
@@ -292,8 +385,29 @@ function App() {
                 <Spinner loading={transcribing}/>} {/* Show spinner next to the button */}
             </button>
 
+            <button
+                type='submit'
+                onClick={showOrHideSettings}
+                className='transcribe-button'
+            >
+                Show / Hide settings
+            </button>
+
             {
-                (uploading || transcribing ) && (
+                showSettings && (
+                    <Settings
+                        onScan={onScan}
+                        onAddUcloudFiles={onAddUcloudFiles}
+                        scanning={scanning}
+                        transcribing={transcribing}
+                        uploading={uploading}
+                        scannedFiles={scannedFiles}
+                    />
+                )
+            }
+
+            {
+                (uploading || transcribing) && (
                     <h2>Status</h2>
                 )
             }
@@ -348,7 +462,8 @@ function App() {
                     <div>
                         <h3>Log files</h3>
                         <p>
-                            The log files contain output from the transcription process and from the application running the transcription.
+                            The log files contain output from the transcription process and from the application running
+                            the transcription.
                             <br/> If something goes wrong these files can help determine the issue.
                         </p>
                         {logFiles.map((result, index) => (
