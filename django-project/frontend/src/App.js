@@ -4,6 +4,7 @@ import axios from 'axios';
 import Spinner  from './spinners'
 import { csrfToken } from './csrf';
 import Settings from "./Settings";
+import TranscriptionStatus from "./TranscriptionStatus";
 
 function App() {
     const formatDuration = (duration) => {
@@ -33,8 +34,8 @@ function App() {
         const dataFromSession = sessionStorage.getItem("statusText");
         return dataFromSession ? JSON.parse(dataFromSession) : null;
     }
-    const getInitialDataSize = () => {
-        const dataFromSession = sessionStorage.getItem("dataSize");
+    const getInitialInteger = (keyname) => {
+        const dataFromSession = sessionStorage.getItem(keyname);
         return dataFromSession ? JSON.parse(dataFromSession) : 0;
     }
     const getInitialTranscriptionStartTime = () => {
@@ -45,6 +46,7 @@ function App() {
     const [files, setFiles] = useState([]);
     const [scannedFiles, setScannedFiles] = useState([]);
     const [scannedAndLinkedFiles, setScannedAndLinkedFiles] = useState([]);
+    const [activeTask, setActiveTask] = useState(getInitialArrayState("activeTask"));
     const [rejected, setRejected] = useState([]);
     const [results, setResults] = useState(getInitialArrayState("results"));
     const [transcribing, setTranscribing] = useState(getInitialBooleanState("transcribing",false)); // State to control spinner visibility
@@ -53,7 +55,8 @@ function App() {
     const [transcriptionId, setTranscriptionId] = useState(getInitialTranscriptionId);
     const [uploading, setUploading] = useState(getInitialBooleanState("uploading",false));
     const [statusText, setStatusText] = useState(getInitialTranscriptionStatus);
-    const [dataSize, setDataSize] = useState(getInitialDataSize);
+    const [dataSize, setDataSize] = useState(getInitialInteger("dataSize"));
+    const [percentageDone, setPercentageDone] = useState(getInitialInteger("percentageDone"));
     const [transcriptionStartTime, setTranscriptionStartTime] = useState(getInitialTranscriptionStartTime);
     const [scanning, setScanning] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
@@ -61,6 +64,9 @@ function App() {
     useEffect(() => {
         sessionStorage.setItem("results", JSON.stringify(results))
     }, [results]);
+    useEffect(() => {
+        sessionStorage.setItem("activeTask", JSON.stringify(activeTask))
+    }, [activeTask]);
     useEffect(() => {
         sessionStorage.setItem("buttonDisabled", JSON.stringify(buttonDisabled))
     }, [buttonDisabled]);
@@ -88,6 +94,9 @@ function App() {
         sessionStorage.setItem("dataSize", JSON.stringify(dataSize))
     }, [dataSize]);
     useEffect(() => {
+        sessionStorage.setItem("percentageDone", JSON.stringify(percentageDone))
+    }, [percentageDone]);
+    useEffect(() => {
         sessionStorage.setItem("transcriptionStartTime", JSON.stringify(transcriptionStartTime))
     }, [transcriptionStartTime]);
 
@@ -114,11 +123,15 @@ function App() {
                     if (files.length === 0 && scannedAndLinkedFiles.length === 0) {
                         setButtonDisabled(true);
                     }
+                    setActiveTask([]);
+                    setPercentageDone(0);
                 } else if (data.state === 'FAILURE') {
                     setTranscriptionId(null);
                     setTranscribing(false);
                     setDataSize(0);
                     setTranscriptionStartTime(null);
+                    setActiveTask([]);
+                    setPercentageDone(0);
                     console.error('Task failed:', data.status);
                 } else {
                     // Task is still processing, poll again after a delay
@@ -133,6 +146,11 @@ function App() {
                     let waitingText = "Transcribing " + dataText + " of Data. The transcription time on a GPU can be roughly estimated to 1 minute pr. 1 MB of data. ";
                     waitingText += "Total duration of the transcription so far is: " + formatDuration(duration);
                     setStatusText(waitingText);
+                    let expectedDurationSeconds = Math.floor(dataSize / 1000000 * 60)
+                    let durationSeconds = Math.floor(duration / 1000 )
+                    let percentage = durationSeconds / expectedDurationSeconds;
+                    // don't show higher progress percentage than 90 %
+                    setPercentageDone(percentage < 0.9 ? percentage : 0.9);
                 }
             })
             .catch(error => {
@@ -208,6 +226,15 @@ function App() {
             });
             console.debug('the transcription id is: ' + response.data.task_id)
             setTranscriptionId(response.data.task_id)
+            // update the list of files that is currently worked on
+            let activeTranscriptionList = [];
+            files.forEach((file) => {
+                addFileDataToList(file,activeTranscriptionList, false)
+            });
+            scannedAndLinkedFiles.forEach((file) => {
+                addFileDataToList(file, activeTranscriptionList, true)
+            });
+            setActiveTask(activeTranscriptionList);
         } catch (error) {
             console.error('Error uploading file:', error);
         } finally {
@@ -220,6 +247,14 @@ function App() {
             setScannedAndLinkedFiles([]);
         }
     };
+
+    const addFileDataToList = (file, list, ucloud) => {
+        list.push({
+            "name": file.name,
+            "size": file.size,
+            "ucloud": ucloud
+        })
+    }
 
     const onScan = async (e) => {
         e.preventDefault();
@@ -418,7 +453,11 @@ function App() {
             }
             {
                 transcribing && (
-                    <p className='waitingText'>{statusText}</p>
+                    <TranscriptionStatus
+                        statusText={statusText}
+                        activeTask={activeTask}
+                        percentageDone={percentageDone}
+                    />
                 )
             }
 
