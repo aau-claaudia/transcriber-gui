@@ -5,6 +5,7 @@ import Spinner  from './spinners'
 import { csrfToken } from './csrf';
 import Settings from "./Settings";
 import TranscriptionStatus from "./TranscriptionStatus";
+import transcriberImage from "./logo-transcriber.png";
 
 function App() {
     const formatDuration = (duration) => {
@@ -368,7 +369,9 @@ function App() {
 
     return (
         <div className="App">
-            <h1>Transcriber</h1>
+            <div className="title-container">
+                <img src={transcriberImage} alt="Transcriber" className="centered-image"/>
+            </div>
             <div {...getRootProps({className: 'dropzone'})}>
                 <input {...getInputProps()} />
                 {

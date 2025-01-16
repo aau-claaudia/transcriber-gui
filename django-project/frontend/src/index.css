@@ -18,6 +18,19 @@ code {
   margin-right: auto;
 }
 
+.title-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 2%;
+  margin-bottom: 3%;
+}
+
+.centered-image {
+  max-width: 20%;
+  height: auto;
+}
+
 .dropzone {
   border: dashed #cccc !important;
   border-radius: 10px !important;
