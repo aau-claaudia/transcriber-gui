@@ -133,9 +133,6 @@ function App() {
                     setTranscribing(false);
                     setDataSize(0);
                     setTranscriptionStartTime(null);
-                    if (files.length === 0 && scannedAndLinkedFiles.length === 0) {
-                        setButtonDisabled(true);
-                    }
                     setActiveTask([]);
                     setPercentageDone(0);
                 } else if (data.state === 'FAILURE') {
@@ -492,7 +489,7 @@ function App() {
 
             {results.length > 0 && (
                 <div>
-                    <h3>Transcribed files</h3>
+                    <h2>Transcribed files</h2>
                     <div>
                         <table>
                             <thead>
