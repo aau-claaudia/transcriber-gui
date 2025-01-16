@@ -42,6 +42,10 @@ function App() {
         const dataFromSession = sessionStorage.getItem("transcriptionStartTime");
         return dataFromSession ? JSON.parse(dataFromSession) : null;
     }
+    const getInitialString = (keyname, value) => {
+        const dataFromSession = sessionStorage.getItem(keyname);
+        return dataFromSession ? JSON.parse(dataFromSession) : value;
+    }
 
     const [files, setFiles] = useState([]);
     const [scannedFiles, setScannedFiles] = useState([]);
@@ -60,7 +64,15 @@ function App() {
     const [transcriptionStartTime, setTranscriptionStartTime] = useState(getInitialTranscriptionStartTime);
     const [scanning, setScanning] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
+    const [modelSize, setModelSize] = useState(getInitialString("modelSize", "large-v3"))
+    const [language, setLanguage] = useState(getInitialString("language", "auto"))
 
+    useEffect(() => {
+        sessionStorage.setItem("modelSize", JSON.stringify(modelSize))
+    }, [modelSize]);
+    useEffect(() => {
+        sessionStorage.setItem("language", JSON.stringify(language))
+    }, [language]);
     useEffect(() => {
         sessionStorage.setItem("results", JSON.stringify(results))
     }, [results]);
@@ -207,6 +219,8 @@ function App() {
             formData.append('files', file);
             totalDataSizeBytes += file.size;
         });
+        formData.append('model', modelSize);
+        formData.append('language', language);
         // also sum datasize for linked UCloud files
         scannedAndLinkedFiles.forEach((file) => {
             totalDataSizeBytes += file.size;
@@ -294,6 +308,14 @@ function App() {
             } finally {
             }
         }
+    }
+
+    const onUpdateModel = (modelSize) => {
+        setModelSize(modelSize)
+    }
+
+    const onUpdateLanguage = (language) => {
+        setLanguage(language)
     }
 
     const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
@@ -437,6 +459,10 @@ function App() {
                         transcribing={transcribing}
                         uploading={uploading}
                         scannedFiles={scannedFiles}
+                        onUpdateModel={onUpdateModel}
+                        currentModelSize={modelSize}
+                        onUpdateLanguage={onUpdateLanguage}
+                        currentLanguage={language}
                     />
                 )
             }

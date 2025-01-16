@@ -7,15 +7,17 @@ from django.conf import settings
 
 
 @shared_task
-def transcription_task(model_size):
+def transcription_task(model_size, language):
     print('starting the transcription task now...')
     directory_path: str = os.path.join(settings.MEDIA_ROOT, 'uploads')
     output_dir_path: str = os.path.join(directory_path, "output")
     transcriber_output_file: str = os.path.join(output_dir_path, "transcriber_output.txt")
     try:
         #result = subprocess.run(['python', 'transcriber/aau-whisper/app.py', '--job_name', 'files', '-o', output_dir_path, '-m', model_size, '--input_dir', directory_path, '--no-cuda', '--no-mps', '--threads', '4'],
-        result = subprocess.run(['python', 'transcriber/aau-whisper/app.py', '--job_name', 'files', '-o', output_dir_path, '-m', model_size, '--input_dir', directory_path, '--threads', '4'],
-                                capture_output=True, text=True, check=True)
+        if language == 'auto':
+            result = subprocess.run(['python', 'transcriber/aau-whisper/app.py', '--job_name', 'files', '-o', output_dir_path, '-m', model_size, '--input_dir', directory_path, '--threads', '4'], capture_output=True, text=True, check=True)
+        else:
+            result = subprocess.run(['python', 'transcriber/aau-whisper/app.py', '--job_name', 'files', '-o', output_dir_path, '-m', model_size, '--language', language, '--input_dir', directory_path, '--threads', '4'], capture_output=True, text=True, check=True)
         output = result.stdout
         error = result.stderr
         write_transcriber_output(error, output, transcriber_output_file)

@@ -198,3 +198,40 @@ p.waitingText {
   background-color: #4caf50;
   border-radius: 5px;
 }
+
+.select-box {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+  max-width: 300px;
+  margin: 10px 0;
+}
+
+.select-box select {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  appearance: none;
+  background-color: #fff;
+  background-position: right 10px center;
+  background-size: 16px;
+  cursor: pointer;
+}
+
+.select-box::after {
+  content: '▼';
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: gray;
+}
+
+.select-box select:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+  outline: none;
+}

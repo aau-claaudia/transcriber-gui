@@ -18,7 +18,7 @@ class FileUploadView(APIView):
 
     def post(self, request, *args, **kwargs):
         #print(request.data)
-        if request.data:
+        if request.data and request.data.get('files'):
             serializer = MultipleFileUploadSerializer(data=request.data)
             if serializer.is_valid():
                 files = serializer.validated_data['files']
@@ -32,9 +32,11 @@ class FileUploadView(APIView):
                         return Response(file_serializer.errors, status=400)
             else:
                 return Response(serializer.errors, status=400)
-        # TODO: Make model optional to select in the UI.
+        # Get the model and language from the request
+        model = request.data.get('model')
+        language = request.data.get('language')
         # Start the Celery task
-        task = transcription_task.delay('small')
+        task = transcription_task.delay(model, language)
         # Return the task ID to the client
         return JsonResponse({'task_id': task.id})
 
