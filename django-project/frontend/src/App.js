@@ -135,6 +135,9 @@ function App() {
                     setTranscriptionStartTime(null);
                     setActiveTask([]);
                     setPercentageDone(0);
+                    if (files.length > 0 || scannedAndLinkedFiles.length > 0) {
+                        setButtonDisabled(false);
+                    }
                 } else if (data.state === 'FAILURE') {
                     setTranscriptionId(null);
                     setTranscribing(false);
@@ -166,7 +169,7 @@ function App() {
             .catch(error => {
                 console.error('Error polling task:', error);
             });
-    }, [dataSize, transcriptionStartTime]);
+    }, [dataSize, transcriptionStartTime, files, scannedAndLinkedFiles]);
 
     // effect for starting to poll the server for transcription status if there is an active taskID
     useEffect(() => {
@@ -247,18 +250,22 @@ function App() {
                 addFileDataToList(file, activeTranscriptionList, true)
             });
             setActiveTask(activeTranscriptionList);
-        } catch (error) {
-            console.error('Error uploading file:', error);
-        } finally {
             setUploading(false);
             setTranscribing(true);
             setStatusText('Starting to transcribe selected files...');
+        } catch (error) {
+            console.error('Error uploading file:', error);
+        } finally {
             setProgress(0);
-            setFiles([]);
-            setRejected([]);
-            setScannedAndLinkedFiles([]);
+            resetFileArrays()
         }
     };
+
+    const resetFileArrays = () => {
+        setFiles([]);
+        setRejected([]);
+        setScannedAndLinkedFiles([]);
+    }
 
     const addFileDataToList = (file, list, ucloud) => {
         list.push({
@@ -456,8 +463,6 @@ function App() {
                         onScan={onScan}
                         onAddUcloudFiles={onAddUcloudFiles}
                         scanning={scanning}
-                        transcribing={transcribing}
-                        uploading={uploading}
                         scannedFiles={scannedFiles}
                         onUpdateModel={onUpdateModel}
                         currentModelSize={modelSize}

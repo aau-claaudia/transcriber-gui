@@ -1,7 +1,7 @@
 import React, {useState} from 'react';
 import Spinner from "./spinners";
 
-const Settings = ({ onScan, onAddUcloudFiles, scanning, transcribing, uploading, scannedFiles, onUpdateModel, currentModelSize, onUpdateLanguage, currentLanguage}) => {
+const Settings = ({ onScan, onAddUcloudFiles, scanning, scannedFiles, onUpdateModel, currentModelSize, onUpdateLanguage, currentLanguage}) => {
     const [selectedFiles, setSelectedFiles] = useState([]);
 
     // Function to handle checkbox change
@@ -166,7 +166,7 @@ const Settings = ({ onScan, onAddUcloudFiles, scanning, transcribing, uploading,
                         style={{width: '200px'}}
                         onClick={(e) => onScan(e)}
                         className='transcribe-button'
-                        disabled={transcribing || uploading || scanning}
+                        disabled={scanning}
                     >
                         Scan UCloud folder {scanning &&
                         <Spinner loading={scanning}/>} {/* Show spinner next to the button */}
