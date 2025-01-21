@@ -67,6 +67,7 @@ function App() {
     const [showSettings, setShowSettings] = useState(false);
     const [modelSize, setModelSize] = useState(getInitialString("modelSize", "large-v3"))
     const [language, setLanguage] = useState(getInitialString("language", "auto"))
+    const [errorState, setErrorState] = useState(false);
 
     useEffect(() => {
         sessionStorage.setItem("modelSize", JSON.stringify(modelSize))
@@ -213,13 +214,23 @@ function App() {
         setButtonDisabled(true); // Disable the button
         setUploading(true)
         setShowSettings(false); // hide settings
+        setErrorState(false);
 
         let totalDataSizeBytes = 0;
         const formData = new FormData();
+        // also create file meta data object to use for file size validation on uploads on the server side
+        const fileMetaDataForValidation = [];
         files.forEach((file) => {
             formData.append('files', file);
             totalDataSizeBytes += file.size;
+            fileMetaDataForValidation.push({
+                "filepath": "",
+                "name": file.name,
+                "size": file.size,
+                "target_path_sym_link": "",
+            })
         });
+        formData.append('file_meta_data', JSON.stringify(fileMetaDataForValidation));
         formData.append('model', modelSize);
         formData.append('language', language);
         // also sum datasize for linked UCloud files
@@ -255,6 +266,9 @@ function App() {
             setStatusText('Starting to transcribe selected files...');
         } catch (error) {
             console.error('Error uploading file:', error);
+            setUploading(false);
+            setStatusText("Something went wrong when trying to upload files.")
+            setErrorState(true);
         } finally {
             setProgress(0);
             resetFileArrays()
@@ -277,6 +291,7 @@ function App() {
 
     const onScan = async (e) => {
         e.preventDefault();
+        setErrorState(false);
         setScanning(true); // Disable the scan button
         try {
             const response = await fetch('http://localhost:8000/scan-files/');
@@ -291,6 +306,7 @@ function App() {
     }
 
     const onAddUcloudFiles = async (filesToAdd) => {
+        setErrorState(false);
         if (filesToAdd?.length > 0) {
             let formData = new FormData();
             formData.append('files', JSON.stringify(filesToAdd));
@@ -324,6 +340,7 @@ function App() {
     }
 
     const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
+        setErrorState(false);
         if (acceptedFiles?.length) {
             if (!transcribing) {
                 setButtonDisabled(false);
@@ -480,6 +497,11 @@ function App() {
             {
                 uploading && (
                     <p>Uploading {progress} %</p>
+                )
+            }
+            {
+                errorState && (
+                    <p>{statusText}</p>
                 )
             }
             {

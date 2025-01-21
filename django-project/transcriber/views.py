@@ -18,7 +18,17 @@ class FileUploadView(APIView):
 
     def post(self, request, *args, **kwargs):
         #print(request.data)
-        if request.data and request.data.get('files'):
+        file_meta_data_list = []
+        if request.data and request.data.get('files') and request.data.get('file_meta_data'):
+            # parse drop zone file meta data
+            file_meta_data = request.data.get('file_meta_data')
+            if file_meta_data:
+                meta_data = json.loads(file_meta_data)
+                serializer = MultipleFileMetaDataSerializer(data={'files': meta_data})
+                if serializer.is_valid():
+                    file_meta_data_list = serializer.validated_data['files']
+                    #print(file_meta_data_list)
+            # parse uploaded file data
             serializer = MultipleFileUploadSerializer(data=request.data)
             if serializer.is_valid():
                 files = serializer.validated_data['files']
@@ -27,6 +37,9 @@ class FileUploadView(APIView):
                     file_serializer = FileUploadSerializer(data={'file': file})
                     if file_serializer.is_valid():
                         file_upload = file_serializer.save()
+                        # validate the file size sent by the client against the file size calculated by Django
+                        if not validate_file_size(file_upload.file.size, file_upload.file.name, file_meta_data_list):
+                            return Response("The file size of the uploaded file does not match the expected size.", status=400)
                         file_upload.save()
                     else:
                         return Response(file_serializer.errors, status=400)
@@ -167,3 +180,20 @@ def serve_file(request, path):
         response['Content-Disposition'] = 'attachment; filename="{}"'.format(os.path.basename(file_path))
         return response
 
+
+def validate_file_size(actual_file_size, file_name, meta_data_list):
+    size = get_size_by_name(meta_data_list, file_name)
+    if size is not None:
+        if size != actual_file_size :
+            return False
+    else:
+        # the user must have uploaded the file more than once, and it will be post fixed by django with _xyz.
+        # file already checked
+        return True
+    return True
+
+def get_size_by_name(dict_list, file_name):
+    for item in dict_list:
+        if item.get('name') == file_name.removeprefix('uploads/'):
+            return item.get('size')
+    return None
