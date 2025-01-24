@@ -185,6 +185,12 @@ td.file-name {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+td.file-name-scan {
+  max-width: 200px; /* Adjust the max-width as needed */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 p.waitingText {
   max-width: 60%;
 }

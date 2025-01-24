@@ -181,7 +181,7 @@ const Settings = ({ onScan, onAddUcloudFiles, scanning, scannedFiles, onUpdateMo
                         Add selected files
                     </button>
                 </div>
-                <div style={{marginLeft: '20px', overflowY: 'scroll', maxHeight: '500px', width: '100%'}}>
+                <div style={{marginLeft: '1%', overflowY: 'scroll', maxHeight: '500px', width: '100%'}}>
                     <h3>UCloud files available for transcription</h3>
                     <p>
                         Please select a folder in UCloud before starting the application in order to select files.
@@ -202,7 +202,7 @@ const Settings = ({ onScan, onAddUcloudFiles, scanning, scannedFiles, onUpdateMo
                         {scannedFiles.map((file, index) => (
                             <tr key={index}>
                                 <td><input type="checkbox" onChange={() => handleAddFile(file)}/></td>
-                                <td>{file.name}</td>
+                                <td className="file-name-scan" title={file.name}>{file.name}</td>
                                 <td title={file.filepath} style={{
                                     overflow: 'hidden',
                                     textOverflow: 'ellipsis',
