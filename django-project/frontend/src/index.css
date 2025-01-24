@@ -191,6 +191,13 @@ td.file-name-scan {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+td.file-name-merged {
+  min-width: 400px;
+  max-width: 450px; /* Adjust the max-width as needed */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 p.waitingText {
   max-width: 60%;
 }

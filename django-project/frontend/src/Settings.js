@@ -203,12 +203,7 @@ const Settings = ({ onScan, onAddUcloudFiles, scanning, scannedFiles, onUpdateMo
                             <tr key={index}>
                                 <td><input type="checkbox" onChange={() => handleAddFile(file)}/></td>
                                 <td className="file-name-scan" title={file.name}>{file.name}</td>
-                                <td title={file.filepath} style={{
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                    maxWidth: '200px'
-                                }}>{file.filepath}</td>
+                                <td className="file-name-scan" title={file.filepath}>{file.filepath}</td>
                                 <td>{(file.size / 1000000).toFixed(2)}</td>
                             </tr>
                         ))}

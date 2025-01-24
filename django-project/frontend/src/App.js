@@ -179,7 +179,7 @@ function App() {
     }, [transcriptionId, pollTranscriptionStatus])
 
     // Separate the log files, grouped files, and the zip file
-    const { logFiles, groupedFiles, zipFile } = results.reduce((acc, result) => {
+    const { logFiles, groupedFiles, groupedFilesMergedFormat, zipFile } = results.reduce((acc, result) => {
         const fileName = result.file_name;
         if (fileName === 'transcribe.log' || fileName === 'transcriber_output.txt') {
             acc.logFiles.push(result);
@@ -187,13 +187,20 @@ function App() {
             acc.zipFile = result;
         } else {
             const key = fileName.split('.')[0];
-            if (!acc.groupedFiles[key]) {
-                acc.groupedFiles[key] = [];
+            if (key.endsWith('_merged')) {
+                if (!acc.groupedFilesMergedFormat[key]) {
+                    acc.groupedFilesMergedFormat[key] = [];
+                }
+                acc.groupedFilesMergedFormat[key].push(result);
+            } else {
+                if (!acc.groupedFiles[key]) {
+                    acc.groupedFiles[key] = [];
+                }
+                acc.groupedFiles[key].push(result);
             }
-            acc.groupedFiles[key].push(result);
         }
         return acc;
-    }, { logFiles: [], groupedFiles: {}, zipFile: null });
+    }, { logFiles: [], groupedFiles: {}, groupedFilesMergedFormat: {},zipFile: null });
 
     // Calculate the maximum number of files in any group
     const maxFilesInGroup = Math.max(...Object.values(groupedFiles).map(group => group.length), 0);
@@ -518,6 +525,7 @@ function App() {
                 <div>
                     <h2>Transcribed files</h2>
                     <div>
+                        <h3>Standard files</h3>
                         <table>
                             <thead>
                             <tr>
@@ -530,6 +538,29 @@ function App() {
                                 <tr key={index}>
                                     <td className='file-name' title={key}>{key}</td>
                                     {groupedFiles[key].map((result, subIndex) => (
+                                        <td key={subIndex}>
+                                            <a href={result.file_url} rel="noreferrer" className="button" download>
+                                                {getFileExtension(result.file_name)}
+                                            </a>
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
+                        <h3>Merged speaker format</h3>
+                        <table>
+                            <thead>
+                            <tr>
+                                <th>File</th>
+                                <th colSpan={maxFilesInGroup}>Extensions</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {Object.keys(groupedFilesMergedFormat).map((key, index) => (
+                                <tr key={index}>
+                                    <td className='file-name-merged' title={key}>{key}</td>
+                                    {groupedFilesMergedFormat[key].map((result, subIndex) => (
                                         <td key={subIndex}>
                                             <a href={result.file_url} rel="noreferrer" className="button" download>
                                                 {getFileExtension(result.file_name)}
