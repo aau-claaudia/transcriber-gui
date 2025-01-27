@@ -35,7 +35,13 @@ cd media
 mkdir uploads
 ```
 
-Prepare and start the Django backend
+Prepare and start the Django backend.
+Firstly create an environment file for test in the "transcriber-gui/django-project" directory called ".env" with the following content
+```
+SECRET_KEY='django-insecure-wr3t_w3m5qmgzn(4&f*5uhq*kqd^f21eu!p84jl0dw!8y*=e=^'
+DEBUG=True
+```
+Next migrate the database and start the development server
 ``` bash
 cd django-project
 python manage.py makemigrations transcriber
