@@ -24,7 +24,7 @@ source .venv/bin/activate
 ```
 Now install the needed python libraries
 ``` bash
-pip install django djangorestframework django-cors-headers celery redis
+pip install django djangorestframework django-cors-headers celery redis python-dotenv
 ```
 
 Create the folders for managing file uploads and output
