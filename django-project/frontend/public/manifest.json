@@ -1,0 +1,15 @@
+{
+  "short_name": "Transcriber",
+  "name": "Transcriber UI version",
+  "icons": [
+    {
+      "src": "transcriber.png",
+      "type": "image/png",
+      "sizes": "300x168"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
+}

@@ -1,0 +1,263 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+.App {
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.title-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 2%;
+  margin-bottom: 3%;
+}
+
+.centered-image {
+  max-width: 20%;
+  height: auto;
+}
+
+.dropzone {
+  border: dashed #cccc !important;
+  border-radius: 10px !important;
+  text-align: center;
+  cursor: pointer;
+  margin-bottom: 3%;
+}
+
+.dropzone .dz-preview .dz-progress {
+  display: block;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.dropzone .dz-preview .dz-progress .dz-upload {
+  background: #007bff;
+  height: 100%;
+  width: 0;
+  transition: width 0.3s ease-in-out;
+}
+
+.dropzone:hover {
+  background-color: aliceblue !important;
+}
+
+/* Medium size green button with a modern feel */
+.transcribe-button {
+  display: inline-block;
+  margin-top: 2%;
+  margin-right: 2%;
+  padding: 10px 20px; /* Adjust padding for medium size */
+  font-size: 16px; /* Adjust font size for medium size */
+  font-weight: bold;
+  color: #fff; /* White text color */
+  background-color: #28a745; /* Green background color */
+  border: none; /* Remove default border */
+  border-radius: 5px; /* Rounded corners */
+  text-align: center;
+  text-decoration: none; /* Remove underline from links */
+  cursor: pointer; /* Pointer cursor on hover */
+  transition: background-color 0.3s ease, transform 0.3s ease; /* Smooth transitions */
+}
+
+.transcribe-button:hover {
+  background-color: #218838; /* Darker green on hover */
+  transform: translateY(-2px); /* Slight lift on hover */
+}
+
+.transcribe-button:active {
+  background-color: #1e7e34; /* Even darker green on click */
+  transform: translateY(0); /* Reset lift on click */
+}
+.transcribe-button:enabled {
+  background-color: #28a745; /* Green background color */
+}
+
+.transcribe-button:disabled {
+  background-color: #2b542c;
+}
+
+.transcribe-button:focus {
+  outline: none; /* Remove default focus outline */
+  box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.5); /* Custom focus outline */
+}
+
+body {
+  background-color: #f8f8f8;
+}
+
+/* Center the h1 element and give it a nice look */
+h1 {
+  text-align: center;          /* Center the text */
+  #font-family: 'Arial', sans-serif; /* Use a clean, modern font */
+  #font-size: 2.5em;            /* Increase the font size */
+  #color: #333;                 /* Set a dark gray color */
+  margin-top: 5%;
+  margin-bottom: 5%; /* Add some space above the heading */
+  #margin-bottom: 20px;         /* Add some space below the heading */
+  #padding: 10px;               /* Add some padding */
+  #border-bottom: 2px solid #ccc; /* Add a bottom border for a nice effect */
+  #background-color: #f9f9f9;   /* Light background color */
+  #border-radius: 5px;          /* Slightly rounded corners */
+  #box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+}
+
+/* General styles for the table */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  font-size: 18px;
+  text-align: left;
+}
+
+th, td {
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+}
+
+th {
+  background-color: #f4f4f4;
+  color: #333;
+}
+
+tr:hover {
+  background-color: #f1f1f1;
+}
+
+/* Styles for the buttons */
+a.button {
+  display: inline-block;
+  padding: 8px 16px;
+  margin: 4px 2px;
+  font-size: 16px;
+  color: #fff;
+  background-color: #007bff;
+  border: none;
+  border-radius: 4px;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+a.button:hover {
+  background-color: #0056b3;
+}
+
+.fileTypeError {
+  color: red;
+}
+
+.ucloud-file {
+  color: blue;
+  border: 1px solid blue;
+  border-radius: 10px;
+  padding: 2px 5px;
+  margin-left: 5px;
+}
+
+.helpText {
+  font-size: 25px;
+  margin-top: 5%;
+  margin-bottom: 3%;
+}
+td.file-name {
+  max-width: 100px; /* Adjust the max-width as needed */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+td.file-name-scan {
+  max-width: 200px; /* Adjust the max-width as needed */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+td.file-name-merged {
+  min-width: 400px;
+  max-width: 450px; /* Adjust the max-width as needed */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+p.waitingText {
+  max-width: 60%;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 20px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.progress-bar::-webkit-progress-bar {
+  background-color: #f3f3f3;
+  border-radius: 5px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.2);
+}
+
+.progress-bar::-webkit-progress-value {
+  background-color: #4caf50;
+  border-radius: 5px;
+}
+
+.progress-bar::-moz-progress-bar {
+  background-color: #4caf50;
+  border-radius: 5px;
+}
+
+.select-box {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+  max-width: 300px;
+  margin: 10px 0;
+}
+
+.select-box select {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  appearance: none;
+  background-color: #fff;
+  background-position: right 10px center;
+  background-size: 16px;
+  cursor: pointer;
+}
+
+.select-box::after {
+  content: '▼';
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: gray;
+}
+
+.select-box select:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+  outline: none;
+}
