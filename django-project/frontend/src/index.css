@@ -65,6 +65,7 @@ code {
   margin-top: 2%;
   margin-right: 2%;
   padding: 10px 20px; /* Adjust padding for medium size */
+  margin-bottom: 2%;
   font-size: 16px; /* Adjust font size for medium size */
   font-weight: bold;
   color: #fff; /* White text color */
@@ -148,8 +149,8 @@ a.button {
   padding: 8px 16px;
   margin: 4px 2px;
   font-size: 16px;
-  color: #fff;
-  background-color: #007bff;
+  color: #000;
+  background-color: lightgreen;
   border: none;
   border-radius: 4px;
   text-align: center;
@@ -159,7 +160,7 @@ a.button {
 }
 
 a.button:hover {
-  background-color: #0056b3;
+  background-color: green;
 }
 
 .fileTypeError {
