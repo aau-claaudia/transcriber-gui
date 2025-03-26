@@ -9,8 +9,8 @@ from django.conf import settings
 @shared_task
 def transcription_task(model_size, language):
     print('starting the transcription task now...')
-    directory_path: str = os.path.join(settings.MEDIA_ROOT, 'uploads')
-    output_dir_path: str = os.path.join(directory_path, "output")
+    directory_path: str = os.path.join(settings.MEDIA_ROOT, 'uploads/input')
+    output_dir_path: str = os.path.join(settings.MEDIA_ROOT, 'uploads/output/')
     transcriber_output_file: str = os.path.join(output_dir_path, "transcriber_output.txt")
     try:
         #result = subprocess.run(['python', 'transcriber/aau-whisper/app.py', '--job_name', 'files', '-o', output_dir_path, '-m', model_size, '--input_dir', directory_path, '--no-cuda', '--no-mps', '--threads', '4'],
@@ -25,8 +25,7 @@ def transcription_task(model_size, language):
         write_transcriber_output(e.stderr, e.stdout, transcriber_output_file)
 
     # clean the uploads directory so only the newly uploaded files will be transcribed on the next transcription
-    directory_path: str = os.path.join(settings.MEDIA_ROOT, 'uploads')
-    transcribed_path: str = os.path.join(directory_path, 'transcribed')
+    transcribed_path: str = os.path.join(settings.MEDIA_ROOT, 'uploads/transcribed')
     os.makedirs(transcribed_path, exist_ok=True)
 
     for item in os.listdir(directory_path):

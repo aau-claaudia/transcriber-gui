@@ -73,7 +73,7 @@ class LinkFilesView(APIView):
 
 def scan_files(request):
     source_directory = settings.UCLOUD_DIRECTORY
-    target_directory = os.path.join(settings.MEDIA_ROOT, 'uploads')
+    target_directory = os.path.join(settings.MEDIA_ROOT, 'uploads/input')
     file_list = []
 
     # Ensure the target directory exists
