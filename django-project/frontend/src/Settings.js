@@ -3,6 +3,7 @@ import Spinner from "./spinners";
 
 const Settings = ({ onScan, onAddUcloudFiles, scanning, scannedFiles, onUpdateModel, currentModelSize, onUpdateLanguage, currentLanguage}) => {
     const [selectedFiles, setSelectedFiles] = useState([]);
+    const [scanInitiated, setScanInitiated] = useState(false);
 
     // Function to handle checkbox change
     const handleAddFile = (file) => {
@@ -13,6 +14,12 @@ const Settings = ({ onScan, onAddUcloudFiles, scanning, scannedFiles, onUpdateMo
                 return [...prevSelectedFiles, file];
             }
         });
+    };
+
+    // Function to handle scan button click
+    const handleScan = (e) => {
+        setScanInitiated(true); // Mark that the scan has been initiated
+        onScan(e);
     };
 
     // Function to add files from UCloud to transcription list
@@ -164,7 +171,7 @@ const Settings = ({ onScan, onAddUcloudFiles, scanning, scannedFiles, onUpdateMo
                     <button
                         type='submit'
                         style={{width: '200px'}}
-                        onClick={(e) => onScan(e)}
+                        onClick={(e) => handleScan(e)}
                         className='transcribe-button'
                         disabled={scanning}
                     >
@@ -189,26 +196,31 @@ const Settings = ({ onScan, onAddUcloudFiles, scanning, scannedFiles, onUpdateMo
                         list.
                         Folders with the name 'uploads' will not be scanned, as this is reserved by the application.
                     </p>
-                    <table>
-                        <thead>
-                        <tr>
-                            <th>Select</th>
-                            <th>Name</th>
-                            <th>Path</th>
-                            <th>Size (MB)</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        {scannedFiles.map((file, index) => (
-                            <tr key={index}>
-                                <td><input type="checkbox" onChange={() => handleAddFile(file)}/></td>
-                                <td className="file-name-scan" title={file.name}>{file.name}</td>
-                                <td className="file-name-scan" title={file.filepath}>{file.filepath}</td>
-                                <td>{(file.size / 1000000).toFixed(2)}</td>
+                    {scannedFiles.length > 0 && (
+                        <table>
+                            <thead>
+                            <tr>
+                                <th>Select</th>
+                                <th>Name</th>
+                                <th>Path</th>
+                                <th>Size (MB)</th>
                             </tr>
-                        ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                            {scannedFiles.map((file, index) => (
+                                <tr key={index}>
+                                    <td><input type="checkbox" onChange={() => handleAddFile(file)}/></td>
+                                    <td className="file-name-scan" title={file.name}>{file.name}</td>
+                                    <td className="file-name-scan" title={file.filepath}>{file.filepath}</td>
+                                    <td>{(file.size / 1000000).toFixed(2)}</td>
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
+                    )}
+                    {(!scannedFiles.length > 0 && scanInitiated) && (
+                        <p>No applicable media files found in UCloud mounted folder. </p>
+                    )}
                 </div>
             </div>
         </div>
