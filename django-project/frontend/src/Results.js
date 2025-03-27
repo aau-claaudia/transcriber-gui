@@ -30,8 +30,8 @@ const Results = ({ zipFile, maxFilesInGroup, groupedFiles, groupedFilesMergedFor
     return (
         <div>
             <h2>Transcribed files</h2>
-            <p>The transcribed files are saved in UCloud in the "/Jobs/Transcriber/job-number" folder, and the uploaded
-                media files are also saved here under "uploads".
+            <p>The transcribed output files are saved in UCloud in the "/Jobs/Transcriber/job-number/uploads/output" folder, and the uploaded
+                media files are also saved here under "uploads/transcribed".
                 The files can be downloaded below as a zip-file that contains all transcribed files, or by clicking one
                 of the buttons with the desired file extension. </p>
             <div>
