@@ -28,7 +28,7 @@ const Results = ({ zipFile, maxFilesInGroup, groupedFiles, groupedFilesMergedFor
     }
 
     return (
-        <div>
+        <div style={{marginBottom: '5%'}}>
             <h2>Transcribed files</h2>
             <p>The transcribed output files are saved in UCloud in the "/Jobs/Transcriber/job-number/uploads/output" folder, and the uploaded
                 media files are also saved here under "uploads/transcribed".
@@ -108,8 +108,6 @@ const Results = ({ zipFile, maxFilesInGroup, groupedFiles, groupedFilesMergedFor
                     </div>
                 ))}
             </div>
-            <br/>
-            <br/>
         </div>
     );
 };

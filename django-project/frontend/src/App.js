@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
-import Spinner  from './spinners'
+//import Spinner  from './spinners'
 import { csrfToken } from './csrf';
 import Settings from "./Settings";
 import TranscriptionStatus from "./TranscriptionStatus";
@@ -55,8 +55,8 @@ function App() {
     const [activeTask, setActiveTask] = useState(getInitialArrayState("activeTask"));
     const [rejected, setRejected] = useState([]);
     const [results, setResults] = useState(getInitialArrayState("results"));
-    const [transcribing, setTranscribing] = useState(getInitialBooleanState("transcribing",false)); // State to control spinner visibility
-    const [buttonDisabled, setButtonDisabled] = useState(getInitialBooleanState("buttonDisabled", true)); // State to control button disabled
+    const [transcribing, setTranscribing] = useState(getInitialBooleanState("transcribing",false));
+    const [buttonDisabled, setButtonDisabled] = useState(getInitialBooleanState("buttonDisabled", true));
     const [progress, setProgress] = useState(0)
     const [transcriptionId, setTranscriptionId] = useState(getInitialTranscriptionId);
     const [uploading, setUploading] = useState(getInitialBooleanState("uploading",false));
@@ -406,18 +406,23 @@ function App() {
                 <input {...getInputProps()} />
                 {
                     isDragActive ?
-                        <p>Drop the files here ...</p> :
-                        <p>Drag 'n' drop file(s) here, or click to select file(s)</p>
+                        <div>
+                            <p>Drop the files</p>
+                            <p>here ...</p>
+                        </div>
+                        :
+                        <div>
+                            <p>Drag 'n' drop file(s) here, or click to select file(s)</p>
+                            <p>To select the files from a mounted folder choose "Show settings"</p>
+                        </div>
                 }
             </div>
             {
                 (!transcribing && results.length === 0) && (
                     <p className='helpText'>
-                        This application can help you transcribe audio and video files.
-                        When files are dropped into the area above the 'Selected files' list shows which files are selected
-                        for transcription.
-                        When you are happy with the selection press the 'Transcribe' button to start a transcription on the
-                        selected files.
+                        This application allow you to transcribe audio and video files. When files are dropped into the area above the 'Selected
+                        files' list shows which files are selected for transcription. When you are happy with the selection press the 'Start
+                        Transcription' button to start the transcription of the selected files.
                     </p>
                 )
             }
@@ -466,19 +471,20 @@ function App() {
             <button
                 type='submit'
                 onClick={(e) => onTranscribe(e)}
+                style={{width: '200px'}}
                 className='transcribe-button'
                 disabled={buttonDisabled} // Bind the button's disabled attribute to the state
             >
-                Start transcription {transcribing &&
-                <Spinner loading={transcribing}/>} {/* Show spinner next to the button */}
+                {transcribing ? 'In progress' : 'Start transcription'}
             </button>
 
             <button
                 type='submit'
                 onClick={showOrHideSettings}
+                style={{width: '200px'}}
                 className='transcribe-button'
             >
-                Show / Hide settings
+                {showSettings ? 'Hide settings' : 'Show settings'}
             </button>
 
             {

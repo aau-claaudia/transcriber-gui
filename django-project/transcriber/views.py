@@ -83,9 +83,11 @@ def scan_files(request):
     allowed_extensions = {'.mp3', '.wav', '.m4a', '.mp4', '.mpeg'}
 
     for root, dirs, files in os.walk(source_directory):
-        # Don't look in the 'uploads' directory (used for user uploaded files and output files)
+        # Don't look in the 'uploads' or 'COMPLETED' directories (used for user uploaded files and already completed)
         if 'uploads' in dirs:
             dirs.remove('uploads')
+        if 'COMPLETED' in dirs:
+            dirs.remove('COMPLETED')
         for filename in files:
             file_path = os.path.join(root, filename)
             file_extension = os.path.splitext(filename)[1].lower()
@@ -139,11 +141,10 @@ def poll_transcription_status(request, task_id):
                 'status': task_result.info,  # This is the result returned by the task
             }
             responses = []
-            directory_path: str = os.path.join(settings.MEDIA_ROOT, 'uploads')
-            output_dir_path: str = os.path.join(directory_path, "output")
+            output_dir_path: str = os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS/')
             # List the files in the output directory and construct the URLs
             for filename in os.listdir(output_dir_path):
-                file_url = request.build_absolute_uri(os.path.join(settings.MEDIA_URL, 'uploads/output', filename))
+                file_url = request.build_absolute_uri(os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS', filename))
                 responses.append({
                     'file_name': filename,
                     'file_url': file_url
@@ -160,16 +161,15 @@ def poll_transcription_status(request, task_id):
 
 def serve_file(request, path):
     # Determine the base directory based on the URL prefix
-    if request.path.startswith('/media/'):
-        base_dir = settings.MEDIA_ROOT
-    elif request.path.startswith('/work/'):
+    if request.path.startswith('/work/'):
         base_dir = '/work'  # the files are saved here on UCloud
+    elif 'media/TRANSCRIPTIONS' in request.path:
+        base_dir = os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS/')
     else:
         raise Http404("File not found")
 
     # Construct the full file path
     file_path = os.path.join(base_dir, path)
-
     # Check if the file exists
     if not os.path.exists(file_path):
         raise Http404("File not found")
@@ -194,6 +194,6 @@ def validate_file_size(actual_file_size, file_name, meta_data_list):
 
 def get_size_by_name(dict_list, file_name):
     for item in dict_list:
-        if item.get('name') == file_name.removeprefix('uploads/'):
+        if item.get('name') == file_name.removeprefix('uploads/input/'):
             return item.get('size')
     return None

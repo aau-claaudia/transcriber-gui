@@ -199,9 +199,6 @@ td.file-name-merged {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-p.waitingText {
-  max-width: 60%;
-}
 
 .progress-bar {
   width: 100%;

@@ -38,7 +38,8 @@ const Settings = ({ onScan, onAddUcloudFiles, scanning, scannedFiles, onUpdateMo
     };
 
     return (
-        <div>
+        <div style={{marginBottom: '5%'}}>
+            <h2>Settings</h2>
             {/* Section for setting a model */}
             <div>
                 <h3>Select Model</h3>
@@ -185,16 +186,17 @@ const Settings = ({ onScan, onAddUcloudFiles, scanning, scannedFiles, onUpdateMo
                         className='transcribe-button'
                         disabled={selectedFiles.length === 0}
                     >
-                        Add selected files
+                        Add UCloud files
                     </button>
                 </div>
                 <div style={{marginLeft: '1%', overflowY: 'scroll', maxHeight: '500px', width: '100%'}}>
                     <h3>UCloud files available for transcription</h3>
                     <p>
-                        Please select a folder in UCloud before starting the application in order to select files.
-                        Click the button to scan the UCloud folder. Only audio and video files will appear in the
-                        list.
-                        Folders with the name 'uploads' will not be scanned, as this is reserved by the application.
+                        Click the button to scan the UCloud folder. Only audio and video files will appear in the list. Folders with the name
+                        'uploads' will not be scanned, as this is reserved by the application.
+                    </p>
+                    <p>
+                        After selecting file(s) in the list below click 'Add UCloud files' to add the files to the 'Selected files' list at the top of the page.
                     </p>
                     {scannedFiles.length > 0 && (
                         <table>
@@ -223,6 +225,7 @@ const Settings = ({ onScan, onAddUcloudFiles, scanning, scannedFiles, onUpdateMo
                     )}
                 </div>
             </div>
+            <hr/>
         </div>
     );
 };
