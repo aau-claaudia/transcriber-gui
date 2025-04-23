@@ -15,9 +15,9 @@ def transcription_task(model_size, language):
     try:
         #result = subprocess.run(['python', 'transcriber/aau-whisper/app.py', '--job_name', 'files', '-o', output_dir_path, '-m', model_size, '--input_dir', directory_path, '--no-cuda', '--no-mps', '--threads', '4'],
         if language == 'auto':
-            result = subprocess.run(['python', 'transcriber/aau-whisper/app.py', '--job_name', 'files', '-o', output_dir_path, '-m', model_size, '--input_dir', directory_path, '--merge_speakers', '--threads', '4'], capture_output=True, text=True, check=True)
+            result = subprocess.run(['python', 'transcriber/aau-whisper/app.py', '--job_name', 'files', '-o', output_dir_path, '-m', model_size, '--input_dir', directory_path, '--merge_speakers', '--threads', '4', '--transcriber_gui'], capture_output=True, text=True, check=True)
         else:
-            result = subprocess.run(['python', 'transcriber/aau-whisper/app.py', '--job_name', 'files', '-o', output_dir_path, '-m', model_size, '--language', language, '--input_dir', directory_path, '--merge_speakers', '--threads', '4'], capture_output=True, text=True, check=True)
+            result = subprocess.run(['python', 'transcriber/aau-whisper/app.py', '--job_name', 'files', '-o', output_dir_path, '-m', model_size, '--language', language, '--input_dir', directory_path, '--merge_speakers', '--threads', '4', '--transcriber_gui'], capture_output=True, text=True, check=True)
         output = result.stdout
         error = result.stderr
         write_transcriber_output(error, output, transcriber_output_file)
