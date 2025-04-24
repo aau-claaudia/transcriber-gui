@@ -3,8 +3,8 @@ import React from 'react';
 const TranscriptionStatus = ({ statusText, activeTask, percentageDone}) => {
 
     return (
-        <div>
-            <p className='waitingText'>{statusText}</p>
+        <div style={{marginBottom: '5%'}}>
+            <p>{statusText}</p>
             <h3>Active transcription file list</h3>
             <table>
                 <thead>

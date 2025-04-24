@@ -100,6 +100,47 @@ code {
   box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.5); /* Custom focus outline */
 }
 
+.transcribe-stop-button {
+  display: inline-block;
+  margin-top: 2%;
+  margin-right: 2%;
+  padding: 10px 20px; /* Adjust padding for medium size */
+  margin-bottom: 2%;
+  font-size: 16px; /* Adjust font size for medium size */
+  font-weight: bold;
+  color: #fff; /* White text color */
+  background-color: #dc3545; /* Vibrant red background color */
+  border: none; /* Remove default border */
+  border-radius: 5px; /* Rounded corners */
+  text-align: center;
+  text-decoration: none; /* Remove underline from links */
+  cursor: pointer; /* Pointer cursor on hover */
+  transition: background-color 0.3s ease, transform 0.3s ease; /* Smooth transitions */
+}
+
+.transcribe-stop-button:hover {
+  background-color: #c82333; /* Darker red on hover */
+  transform: translateY(-2px); /* Slight lift on hover */
+}
+
+.transcribe-stop-button:active {
+  background-color: #bd2130; /* Even darker red on click */
+  transform: translateY(0); /* Reset lift on click */
+}
+
+.transcribe-stop-button:enabled {
+  background-color: #dc3545; /* Vibrant red background color */
+}
+
+.transcribe-stop-button:disabled {
+  background-color: #adb5bd; /* Light grey for disabled state */
+}
+
+.transcribe-stop-button:focus {
+  outline: none; /* Remove default focus outline */
+  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.5); /* Custom focus outline with red glow */
+}
+
 body {
   background-color: #f8f8f8;
 }
@@ -198,9 +239,6 @@ td.file-name-merged {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-p.waitingText {
-  max-width: 60%;
 }
 
 .progress-bar {
