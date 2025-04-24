@@ -18,12 +18,13 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, re_path
-from transcriber.views import FileUploadView, poll_transcription_status, index, serve_file, scan_files, LinkFilesView, RemoveLinkView
+from transcriber.views import FileUploadView, poll_transcription_status, stop_transcription_task, index, serve_file, scan_files, LinkFilesView, RemoveLinkView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('upload/', FileUploadView.as_view(), name='file_upload'),
     path('poll-transcription-status/<str:task_id>/', poll_transcription_status, name='poll_transcription_status'),
+    path('stop_transcription_task/<str:task_id>/', stop_transcription_task, name='stop_transcription_task'),
     path('scan-files/', scan_files, name='scan_files'),
     path('link-files/', LinkFilesView.as_view(), name='link_files'),
     path('remove-link/', RemoveLinkView.as_view(), name='remove_link'),

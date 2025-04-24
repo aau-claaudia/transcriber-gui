@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, {useCallback, useState, useEffect, useRef} from 'react';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
 //import Spinner  from './spinners'
@@ -59,6 +59,7 @@ function App() {
     const [buttonDisabled, setButtonDisabled] = useState(getInitialBooleanState("buttonDisabled", true));
     const [progress, setProgress] = useState(0)
     const [transcriptionId, setTranscriptionId] = useState(getInitialTranscriptionId);
+    const transcriptionIdRef = useRef(transcriptionId);
     const [uploading, setUploading] = useState(getInitialBooleanState("uploading",false));
     const [statusText, setStatusText] = useState(getInitialTranscriptionStatus);
     const [dataSize, setDataSize] = useState(getInitialInteger("dataSize"));
@@ -114,6 +115,10 @@ function App() {
     useEffect(() => {
         sessionStorage.setItem("transcriptionStartTime", JSON.stringify(transcriptionStartTime))
     }, [transcriptionStartTime]);
+    // Keep the ref updated with the latest transcriptionId
+    useEffect(() => {
+        transcriptionIdRef.current = transcriptionId;
+    }, [transcriptionId]);
 
     // Function for showing or hiding the settings
     const showOrHideSettings = () => {
@@ -123,60 +128,67 @@ function App() {
     // Function to poll the server for transcription status
     const pollTranscriptionStatus = useCallback((taskId) => {
         console.debug("Running poll funtion.")
-        fetch(`http://localhost:8000/poll-transcription-status/${taskId}/`)
-            .then(response => response.json())
-            .then(data => {
-                // debug logging the data returned from the server
-                console.debug('Task status:', data);
-                if (data.state === 'SUCCESS') {
-                    console.debug('Task result:', data.result);
-                    setResults(data.result);
-                    setTranscriptionId(null);
-                    setTranscribing(false);
-                    setDataSize(0);
-                    setTranscriptionStartTime(null);
-                    setActiveTask([]);
-                    setPercentageDone(0);
-                    if (files.length > 0 || scannedAndLinkedFiles.length > 0) {
-                        setButtonDisabled(false);
-                    }
-                } else if (data.state === 'FAILURE') {
-                    setTranscriptionId(null);
-                    setTranscribing(false);
-                    setDataSize(0);
-                    setTranscriptionStartTime(null);
-                    setActiveTask([]);
-                    setPercentageDone(0);
-                    console.error('Task failed:', data.status);
-                } else {
-                    // Task is still processing, poll again after a delay
-                    setTimeout(() => pollTranscriptionStatus(taskId), 5000);
-                    let dataText = "";
-                    if (dataSize > 1000000000) {
-                        dataText = (dataSize / 1000000000).toFixed(2) + " GB";
+        console.debug("Transcriptionid = " + taskId)
+        if (taskId) {
+            fetch(`http://localhost:8000/poll-transcription-status/${taskId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    // debug logging the data returned from the server
+                    console.debug('Task status:', data);
+                    if (data.state === 'SUCCESS') {
+                        if (!(data.status === 'TASK ABORTED')) {
+                            console.debug('Task result:', data.result);
+                            setResults(data.result);
+                        }
+                        setTranscriptionId(null);
+                        setTranscribing(false);
+                        setDataSize(0);
+                        setTranscriptionStartTime(null);
+                        setActiveTask([]);
+                        setPercentageDone(0);
+                        if (files.length > 0 || scannedAndLinkedFiles.length > 0) {
+                            setButtonDisabled(false);
+                        }
+                    } else if (data.state === 'FAILURE') {
+                        setTranscriptionId(null);
+                        setTranscribing(false);
+                        setDataSize(0);
+                        setTranscriptionStartTime(null);
+                        setActiveTask([]);
+                        setPercentageDone(0);
+                        console.error('Task failed:', data.status);
                     } else {
-                        dataText = (dataSize / 1000000).toFixed(2) + " MB";
+                        // Task is still processing, poll again after a delay
+                        setTimeout(() => pollTranscriptionStatus(transcriptionIdRef.current), 5000);
+                        let dataText = "";
+                        if (dataSize > 1000000000) {
+                            dataText = (dataSize / 1000000000).toFixed(2) + " GB";
+                        } else {
+                            dataText = (dataSize / 1000000).toFixed(2) + " MB";
+                        }
+                        let duration = Date.now() - transcriptionStartTime;
+                        let waitingText = "Transcribing " + dataText + " of Data. The transcription time on a GPU can be roughly estimated to 1 minute pr. 1 MB of data. ";
+                        waitingText += "Total duration of the transcription so far is: " + formatDuration(duration);
+                        setStatusText(waitingText);
+                        let expectedDurationSeconds = Math.floor(dataSize / 1000000 * 60)
+                        let durationSeconds = Math.floor(duration / 1000)
+                        let percentage = durationSeconds / expectedDurationSeconds;
+                        // don't show higher progress percentage than 90 %
+                        setPercentageDone(percentage < 0.9 ? percentage : 0.9);
                     }
-                    let duration = Date.now() - transcriptionStartTime;
-                    let waitingText = "Transcribing " + dataText + " of Data. The transcription time on a GPU can be roughly estimated to 1 minute pr. 1 MB of data. ";
-                    waitingText += "Total duration of the transcription so far is: " + formatDuration(duration);
-                    setStatusText(waitingText);
-                    let expectedDurationSeconds = Math.floor(dataSize / 1000000 * 60)
-                    let durationSeconds = Math.floor(duration / 1000 )
-                    let percentage = durationSeconds / expectedDurationSeconds;
-                    // don't show higher progress percentage than 90 %
-                    setPercentageDone(percentage < 0.9 ? percentage : 0.9);
-                }
-            })
-            .catch(error => {
-                console.error('Error polling task:', error);
-            });
-    }, [dataSize, transcriptionStartTime, files, scannedAndLinkedFiles]);
+                })
+                .catch(error => {
+                    console.error('Error polling task:', error);
+                });
+        } else {
+            console.debug("Transcription task was cancelled.")
+        }
+    }, [dataSize, transcriptionStartTime, files, scannedAndLinkedFiles, transcriptionId]);
 
-    // effect for starting to poll the server for transcription status if there is an active taskID
+    // effect for starting to poll the server for transcription status if there is an active transcriptionId
     useEffect(() => {
         console.debug("Checking for active transcription ID.");
-        transcriptionId ? setTimeout(() => pollTranscriptionStatus(transcriptionId), 5000) : console.log("No active transcription task to poll.")
+        transcriptionId ? setTimeout(() => pollTranscriptionStatus(transcriptionIdRef.current), 5000) : console.log("No active transcription task to poll.")
     }, [transcriptionId, pollTranscriptionStatus])
 
     // Separate the log files, grouped files, and the zip file
@@ -282,6 +294,36 @@ function App() {
             setProgress(0);
             resetFileArrays()
         }
+    };
+
+    const resetData = () => {
+        setTranscriptionId(null);
+        setTranscribing(false);
+        setDataSize(0);
+        setTranscriptionStartTime(null);
+        setActiveTask([]);
+        setPercentageDone(0);
+        resetFileArrays()
+    }
+
+    const onStopTranscription = async (e) => {
+        // send stop request to backend
+        console.debug("Stopping transcription.")
+        if (transcriptionId) {
+            fetch(`http://localhost:8000/stop_transcription_task/${transcriptionId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    // debug logging the data returned from the server
+                    console.debug('Task status:', data);
+                })
+                .catch(error => {
+                    console.error('Error stopping task:', error);
+                });
+        } else {
+            console.debug("No active transcription id, nothing to stop.")
+        }
+        // reset data
+        resetData();
     };
 
     const resetFileArrays = () => {
@@ -420,13 +462,15 @@ function App() {
             {
                 (!transcribing && results.length === 0) && (
                     <p className='helpText'>
-                        This application allow you to transcribe audio and video files. When files are dropped into the area above the 'Selected
-                        files' list shows which files are selected for transcription. When you are happy with the selection press the 'Start
+                        This application enables you to transcribe audio and video files. When files are dropped into the area
+                        above the 'Selected
+                        files' list shows which files are selected for transcription. When you are happy with the selection
+                        press the 'Start
                         Transcription' button to start the transcription of the selected files.
                     </p>
                 )
             }
-            {(files.length > 0 || scannedAndLinkedFiles.length > 0 ) > 0 && (
+            {(files.length > 0 || scannedAndLinkedFiles.length > 0) > 0 && (
                 <h2>Selected files</h2>
             )}
             {
@@ -476,6 +520,16 @@ function App() {
                 disabled={buttonDisabled} // Bind the button's disabled attribute to the state
             >
                 {transcribing ? 'In progress' : 'Start transcription'}
+            </button>
+
+            <button
+                type='submit'
+                onClick={(e) => onStopTranscription(e)}
+                style={{width: '200px'}}
+                className='transcribe-stop-button'
+                disabled={!transcribing} // Stop button is enabled when we are transcribing
+            >
+                Stop transcription
             </button>
 
             <button

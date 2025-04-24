@@ -8,6 +8,7 @@ import json
 from django.http import JsonResponse, HttpResponse, Http404
 from rest_framework.views import APIView
 from .tasks import transcription_task
+from celery.result import AsyncResult
 
 def index(request):
     print(request)
@@ -140,17 +141,19 @@ def poll_transcription_status(request, task_id):
                 'state': task_result.state,
                 'status': task_result.info,  # This is the result returned by the task
             }
-            responses = []
-            output_dir_path: str = os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS/')
-            # List the files in the output directory and construct the URLs
-            for filename in os.listdir(output_dir_path):
-                file_url = request.build_absolute_uri(os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS', filename))
-                responses.append({
-                    'file_name': filename,
-                    'file_url': file_url
-                })
-            responses.sort(key=lambda x: x['file_name'])
-            response['result'] = responses
+            # only add results if the task was not aborted
+            if not "TASK ABORTED" in task_result.info:
+                responses = []
+                output_dir_path: str = os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS/')
+                # List the files in the output directory and construct the URLs
+                for filename in os.listdir(output_dir_path):
+                    file_url = request.build_absolute_uri(os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS', filename))
+                    responses.append({
+                        'file_name': filename,
+                        'file_url': file_url
+                    })
+                responses.sort(key=lambda x: x['file_name'])
+                response['result'] = responses
     else:
         # Something went wrong in the background job
         response = {
@@ -158,6 +161,11 @@ def poll_transcription_status(request, task_id):
             'status': str(task_result.info),  # This is the exception raised
         }
     return JsonResponse(response)
+
+def stop_transcription_task(request, task_id):
+    task_result = transcription_task.AsyncResult(task_id)
+    task_result.abort()  # Abort the task
+    return JsonResponse({'status': 'Task aborted successfully'})
 
 def serve_file(request, path):
     # Determine the base directory based on the URL prefix
