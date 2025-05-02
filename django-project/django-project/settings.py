@@ -134,7 +134,11 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 UCLOUD_DIRECTORY = BASE_DIR / 'ucloud'
 
-FILE_UPLOAD_MAX_MEMORY_SIZE = 50000000000
+# Maximum size (in bytes) for in-memory file uploads
+DATA_UPLOAD_MAX_MEMORY_SIZE = None  # Disable in-memory limit (default is 2.5MB)
+
+# Maximum size (in bytes) for file uploads
+FILE_UPLOAD_MAX_MEMORY_SIZE = None  # Disable in-memory limit for file uploads
 
 #CORS_ALLOW_ALL_ORIGINS = True
 #CORS_ORIGIN_ALLOW_ALL = True  # allow all origins
