@@ -153,3 +153,7 @@ CORS_ALLOWED_ORIGINS = [
 # Add Celery configuration
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+
+# This configuration is needed to make nginx aware of the external port,
+# so that the created file links will have the port added.
+USE_X_FORWARDED_HOST = True

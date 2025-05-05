@@ -130,7 +130,7 @@ function App() {
         console.debug("Running poll funtion.")
         console.debug("Transcriptionid = " + taskId)
         if (taskId) {
-            fetch(`http://localhost:8000/poll-transcription-status/${taskId}/`)
+            fetch(`/poll-transcription-status/${taskId}/`)
                 .then(response => response.json())
                 .then(data => {
                     // debug logging the data returned from the server
@@ -262,7 +262,7 @@ function App() {
         setTranscriptionStartTime(Date.now())
 
         try {
-            const response = await axios.post('http://localhost:8000/upload/', formData, {
+            const response = await axios.post('/upload/', formData, {
                 onUploadProgress: (progressEvent) => {
                     const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
                     setProgress(percentCompleted);
@@ -310,7 +310,7 @@ function App() {
         // send stop request to backend
         console.debug("Stopping transcription.")
         if (transcriptionId) {
-            fetch(`http://localhost:8000/stop_transcription_task/${transcriptionId}/`)
+            fetch(`/stop_transcription_task/${transcriptionId}/`)
                 .then(response => response.json())
                 .then(data => {
                     // debug logging the data returned from the server
@@ -345,7 +345,7 @@ function App() {
         setErrorState(false);
         setScanning(true); // Disable the scan button
         try {
-            const response = await fetch('http://localhost:8000/scan-files/');
+            const response = await fetch('/scan-files/');
             const fileList = await response.json();
             //console.debug('Scanned files:', fileList);
             setScannedFiles(fileList)
@@ -363,7 +363,7 @@ function App() {
             formData.append('files', JSON.stringify(filesToAdd));
             try {
                 // call view to create the symlinks
-                const response = await axios.post('http://localhost:8000/link-files/', formData);
+                const response = await axios.post('/link-files/', formData);
                 // add the files to setScannedAndLinkedFiles
                 if (response.status === 200) {
                     let newFiles = filesToAdd.filter((file) =>
@@ -414,7 +414,7 @@ function App() {
             formData.append('path', path);
             try {
                 // call view to remove the symbolic link to the UCloud file
-                const response = await axios.post('http://localhost:8000/remove-link/', formData);
+                const response = await axios.post('/remove-link/', formData);
                 if (response.status === 200) {
                     // remove the file in the list of linked files to update the UI
                     setScannedAndLinkedFiles(files => files.filter(file => file.target_path_sym_link !== path))
