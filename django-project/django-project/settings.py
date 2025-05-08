@@ -148,8 +148,14 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',  # frontend URL, react development server
     'http://localhost:8000', # Django server
     'http://localhost:8080', # React Nginx server
+    'https://localhost:3000',  # frontend URL, react development server
+    'https://localhost:8000', # Django server
+    'https://localhost:8080', # React Nginx server
 ]
 
 # Add Celery configuration
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+
+# use the header to determine if the request is though HTTPS
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
