@@ -22,7 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
-ALLOWED_HOSTS = ['localhost']
+ALLOWED_HOSTS = ['*']
 
 SECRET_KEY = os.environ.get('SECRET_KEY')
 DEBUG = os.environ.get('DEBUG') == 'True'
@@ -148,12 +148,14 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',  # frontend URL, react development server
     'http://localhost:8000', # Django server
     'http://localhost:8080', # React Nginx server
+    'https://localhost:3000',  # frontend URL, react development server
+    'https://localhost:8000', # Django server
+    'https://localhost:8080', # React Nginx server
 ]
 
 # Add Celery configuration
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 
-# This configuration is needed to make nginx aware of the external port,
-# so that the created file links will have the port added.
-USE_X_FORWARDED_HOST = True
+# use the header to determine if the request is through HTTPS
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
