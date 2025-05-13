@@ -449,8 +449,7 @@ function App() {
                 {
                     isDragActive ?
                         <div>
-                            <p>Drop the files</p>
-                            <p>here ...</p>
+                            <p>Drop the files here ...</p>
                         </div>
                         :
                         <div>
