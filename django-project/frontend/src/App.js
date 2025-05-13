@@ -454,20 +454,21 @@ function App() {
                         </div>
                         :
                         <div>
-                            <p>Drag 'n' drop file(s) here, or click to select file(s)</p>
-                            <p>To select the files from a mounted folder choose "Show settings"</p>
+                            <p>Drag 'n' drop file(s) here, or click to browse from your computer.</p>
                         </div>
                 }
             </div>
             {
                 (!transcribing && results.length === 0) && (
+                    <div>
                     <p className='helpText'>
-                        This application enables you to transcribe audio and video files. When files are dropped into the area
-                        above the 'Selected
-                        files' list shows which files are selected for transcription. When you are happy with the selection
-                        press the 'Start
-                        Transcription' button to start the transcription of the selected files.
+                        This application enables you to transcribe audio and video files. When files are dropped into the area above the <b>Selected files</b> list shows which files are selected for transcription.
+                        Choose <b>Show settings</b> if you need to modify the transcription model and/or language (default <b>large-v3</b> and <b>Automatic</b> respectively) or if you want to add files from a UCloud folder.
                     </p>
+                    <p className='helpText'>
+                        When you are happy with the selection press the <b>Start Transcription</b> button to start the transcription of the selected files.
+                    </p>
+                    </div>
                 )
             }
             {(files.length > 0 || scannedAndLinkedFiles.length > 0) > 0 && (

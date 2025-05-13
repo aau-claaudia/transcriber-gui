@@ -31,8 +31,8 @@ const Results = ({ zipFile, maxFilesInGroup, groupedFiles, groupedFilesMergedFor
         <div style={{marginBottom: '5%'}}>
             <h2>Transcribed files</h2>
             <p>
-                The transcriptions can be downloaded below as single files or a zip-file containing all transcribed files.
-                Both the transcriptions and the uploaded files are also available in UCloud under the corresponding job folder.
+                The download of transcriptions is possible as a single file or
+                as a zip-file containing all transcribed files.
             </p>
             <div>
                 {zipFile && (

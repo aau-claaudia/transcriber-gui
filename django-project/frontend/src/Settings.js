@@ -192,11 +192,12 @@ const Settings = ({ onScan, onAddUcloudFiles, scanning, scannedFiles, onUpdateMo
                 <div style={{marginLeft: '1%', overflowY: 'scroll', maxHeight: '500px', width: '100%'}}>
                     <h3>UCloud files available for transcription</h3>
                     <p>
-                        Click the button to scan the UCloud folder. Only audio and video files will appear in the list. Folders with the name
-                        'uploads' and 'COMPLETED' will not be scanned, as these names are reserved by the application.
+                        Click the button to scan the UCloud folder. Only audio and video files will appear in the list.
+                        Folders with the name <b>uploads</b> and <b>COMPLETED</b> will not be scanned, as these names are reserved by the application.
                     </p>
                     <p>
-                        After selecting file(s) in the list below click 'Add UCloud files' to add the files to the 'Selected files' list at the top of the page.
+                        After selection, click the button <b>Add UCloud files</b>.
+                        The files will be added to the <b>Selected files</b> list at the top of the page.
                     </p>
                     {scannedFiles.length > 0 && (
                         <table>
