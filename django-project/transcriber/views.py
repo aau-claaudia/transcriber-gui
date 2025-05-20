@@ -74,7 +74,7 @@ class LinkFilesView(APIView):
 
 def scan_files(request):
     source_directory = settings.UCLOUD_DIRECTORY
-    target_directory = os.path.join(settings.MEDIA_ROOT, 'uploads/input')
+    target_directory = os.path.join(settings.MEDIA_ROOT, 'UPLOADS/INPUT')
     file_list = []
 
     # Ensure the target directory exists
@@ -84,9 +84,9 @@ def scan_files(request):
     allowed_extensions = {'.mp3', '.wav', '.m4a', '.mp4', '.mpeg'}
 
     for root, dirs, files in os.walk(source_directory):
-        # Don't look in the 'uploads' or 'COMPLETED' directories (used for user uploaded files and already completed)
-        if 'uploads' in dirs:
-            dirs.remove('uploads')
+        # Don't look in the 'UPLOADS' or 'COMPLETED' directories (used for user uploaded files and already completed)
+        if 'UPLOADS' in dirs:
+            dirs.remove('UPLOADS')
         if 'COMPLETED' in dirs:
             dirs.remove('COMPLETED')
         for filename in files:
@@ -202,6 +202,6 @@ def validate_file_size(actual_file_size, file_name, meta_data_list):
 
 def get_size_by_name(dict_list, file_name):
     for item in dict_list:
-        if item.get('name') == file_name.removeprefix('uploads/input/'):
+        if item.get('name') == file_name.removeprefix('UPLOADS/INPUT/'):
             return item.get('size')
     return None
