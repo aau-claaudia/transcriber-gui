@@ -167,7 +167,7 @@ function App() {
                             dataText = (dataSize / 1000000).toFixed(2) + " MB";
                         }
                         let duration = Date.now() - transcriptionStartTime;
-                        let waitingText = "Transcribing " + dataText + " of Data. The transcription time on a GPU can be roughly estimated to 1 minute pr. 1 MB of data. ";
+                        let waitingText = "Transcribing " + dataText + " of data. The transcription time on a GPU can be roughly estimated to 1 minute pr. 1 MB of data. ";
                         waitingText += "Total duration of the transcription so far is: " + formatDuration(duration);
                         setStatusText(waitingText);
                         let expectedDurationSeconds = Math.floor(dataSize / 1000000 * 60)
@@ -465,7 +465,7 @@ function App() {
                         Choose <b>Show settings</b> if you need to modify the transcription model and/or language (default <b>large-v3</b> and <b>Automatic</b> respectively) or if you want to add files from a UCloud folder.
                     </p>
                     <p className='helpText'>
-                        When you are happy with the selection press the <b>Start Transcription</b> button to start the transcription of the selected files.
+                        When you are happy with the selection press the <b>Start transcription</b> button to start the transcription of the selected files.
                     </p>
                     </div>
                 )

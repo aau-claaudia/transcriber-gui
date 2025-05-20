@@ -10,7 +10,7 @@ from django.conf import settings
 @shared_task(bind=True, base=AbortableTask)
 def transcription_task(self, model_size, language):
     print('starting the transcription task now...')
-    directory_path: str = os.path.join(settings.MEDIA_ROOT, 'uploads/input')
+    directory_path: str = os.path.join(settings.MEDIA_ROOT, 'UPLOADS/INPUT')
     output_dir_path: str = os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS/')
     transcriber_output_file: str = os.path.join(output_dir_path, "transcriber_output.txt")
     process = None  # Initialize the process variable

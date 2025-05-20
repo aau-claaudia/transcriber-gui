@@ -42,7 +42,7 @@ const Settings = ({ onScan, onAddUcloudFiles, scanning, scannedFiles, onUpdateMo
             <h2>Settings</h2>
             {/* Section for setting a model */}
             <div>
-                <h3>Select Model</h3>
+                <h3>Select model</h3>
                 <div className="select-box">
                     <select defaultValue={currentModelSize} onChange={handleModelChange}>
                         <option value="base">base</option>
@@ -57,7 +57,7 @@ const Settings = ({ onScan, onAddUcloudFiles, scanning, scannedFiles, onUpdateMo
 
             {/* Section for setting a language */}
             <div>
-                <h3>Select Language</h3>
+                <h3>Select language</h3>
                 <div className="select-box">
                     <select defaultValue={currentLanguage} onChange={handleLangaugeChange}>
                         <option value="auto">Automatic</option>
@@ -193,7 +193,7 @@ const Settings = ({ onScan, onAddUcloudFiles, scanning, scannedFiles, onUpdateMo
                     <h3>UCloud files available for transcription</h3>
                     <p>
                         Click the button to scan the UCloud folder. Only audio and video files will appear in the list.
-                        Folders with the name <b>uploads</b> and <b>COMPLETED</b> will not be scanned, as these names are reserved by the application.
+                        Folders with the name <b>UPLOADS</b> and <b>COMPLETED</b> will not be scanned, as these names are reserved by the application.
                     </p>
                     <p>
                         After selection, click the button <b>Add UCloud files</b>.

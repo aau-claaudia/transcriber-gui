@@ -11,7 +11,7 @@ const TranscriptionStatus = ({ statusText, activeTask, percentageDone}) => {
                 <tr>
                     <th>Name</th>
                     <th>Size (MB)</th>
-                    <th>File Origin</th>
+                    <th>File origin</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -25,7 +25,7 @@ const TranscriptionStatus = ({ statusText, activeTask, percentageDone}) => {
                                 {file.name}
                         </td>
                         <td>{(file.size / 1000000).toFixed(2)}</td>
-                        <td>{file.ucloud ? "UCLoud" : "Upload"}</td>
+                        <td>{file.ucloud ? "UCloud" : "Upload"}</td>
                     </tr>
                 ))}
                 </tbody>
