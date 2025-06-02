@@ -151,16 +151,7 @@ def poll_transcription_status(request, task_id):
             }
             # only add results if the task was not aborted
             if not "TASK ABORTED" in task_result.info:
-                responses = []
-                output_dir_path: str = os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS/')
-                # List the files in the output directory and construct the URLs
-                for filename in os.listdir(output_dir_path):
-                    file_url = request.build_absolute_uri(os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS', filename))
-                    responses.append({
-                        'file_name': filename,
-                        'file_url': file_url
-                    })
-                responses.sort(key=lambda x: x['file_name'])
+                responses = prepare_results(request)
                 response['result'] = responses
     else:
         # Something went wrong in the background job
@@ -169,6 +160,26 @@ def poll_transcription_status(request, task_id):
             'status': str(task_result.info),  # This is the exception raised
         }
     return JsonResponse(response)
+
+def get_completed_transcriptions(request):
+    response = {}
+    responses = prepare_results(request)
+    response['result'] = responses
+    return JsonResponse(response)
+
+def prepare_results(request):
+    responses = []
+    output_dir_path: str = os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS/')
+    if os.path.isdir(output_dir_path):
+        # List the files in the output directory and construct the URLs
+        for filename in os.listdir(output_dir_path):
+            file_url = request.build_absolute_uri(os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS', filename))
+            responses.append({
+                'file_name': filename,
+                'file_url': file_url
+            })
+        responses.sort(key=lambda x: x['file_name'])
+    return responses
 
 def stop_transcription_task(request, task_id):
     task_result = transcription_task.AsyncResult(task_id)

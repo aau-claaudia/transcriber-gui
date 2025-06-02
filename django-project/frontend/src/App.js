@@ -92,6 +92,19 @@ function App() {
     }, []); // Empty dependency array ensures this runs only once on component mount
 
     useEffect(() => {
+        const fetchResults = async () => {
+            const response = await fetch('/get-completed-transcriptions/');
+            const data = await response.json();
+            console.debug('Already completed transcription returned from server:', data.result);
+            setResults(data.result)
+        }
+        // call the async function
+        fetchResults()
+            // catch any error
+            .catch(console.error);
+    }, []); // Empty dependency array ensures this runs only once on component mount
+
+    useEffect(() => {
         sessionStorage.setItem("modelSize", JSON.stringify(modelSize))
     }, [modelSize]);
     useEffect(() => {
