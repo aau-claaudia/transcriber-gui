@@ -75,7 +75,12 @@ class LinkFilesView(APIView):
 def scan_files(request):
     source_directory = settings.UCLOUD_DIRECTORY
     target_directory = os.path.join(settings.MEDIA_ROOT, 'UPLOADS/INPUT')
+    scan_info = {}
     file_list = []
+
+    # check if there is a mounted folder
+    mounted_folder = has_subdirectories(source_directory)
+    scan_info['mounted_folder'] = mounted_folder
 
     # Ensure the target directory exists
     os.makedirs(target_directory, exist_ok=True)
@@ -83,28 +88,31 @@ def scan_files(request):
     # Define the allowed file extensions
     allowed_extensions = {'.mp3', '.wav', '.m4a', '.mp4', '.mpeg'}
 
-    for root, dirs, files in os.walk(source_directory):
-        # Don't look in the 'UPLOADS' or 'COMPLETED' directories (used for user uploaded files and already completed)
-        if 'UPLOADS' in dirs:
-            dirs.remove('UPLOADS')
-        if 'COMPLETED' in dirs:
-            dirs.remove('COMPLETED')
-        for filename in files:
-            file_path = os.path.join(root, filename)
-            file_extension = os.path.splitext(filename)[1].lower()
+    if mounted_folder:
+        for root, dirs, files in os.walk(source_directory):
+            # Don't look in the 'UPLOADS' or 'COMPLETED' directories (used for user uploaded files and already completed)
+            if 'UPLOADS' in dirs:
+                dirs.remove('UPLOADS')
+            if 'COMPLETED' in dirs:
+                dirs.remove('COMPLETED')
+            for filename in files:
+                file_path = os.path.join(root, filename)
+                file_extension = os.path.splitext(filename)[1].lower()
 
-            if file_extension in allowed_extensions:
-                target_path = os.path.join(target_directory, filename)
+                if file_extension in allowed_extensions:
+                    target_path = os.path.join(target_directory, filename)
 
-                file_info = {
-                    'name': filename,
-                    'size': os.path.getsize(file_path),
-                    'filepath': file_path,
-                    'target_path_sym_link': target_path
-                }
-                file_list.append(file_info)
+                    file_info = {
+                        'name': filename,
+                        'size': os.path.getsize(file_path),
+                        'filepath': file_path,
+                        'target_path_sym_link': target_path
+                    }
+                    file_list.append(file_info)
 
-    return JsonResponse(file_list, safe=False)
+    scan_info['file_list'] = file_list
+
+    return JsonResponse(scan_info)
 
 class RemoveLinkView(APIView):
 
@@ -143,16 +151,7 @@ def poll_transcription_status(request, task_id):
             }
             # only add results if the task was not aborted
             if not "TASK ABORTED" in task_result.info:
-                responses = []
-                output_dir_path: str = os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS/')
-                # List the files in the output directory and construct the URLs
-                for filename in os.listdir(output_dir_path):
-                    file_url = request.build_absolute_uri(os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS', filename))
-                    responses.append({
-                        'file_name': filename,
-                        'file_url': file_url
-                    })
-                responses.sort(key=lambda x: x['file_name'])
+                responses = prepare_results(request)
                 response['result'] = responses
     else:
         # Something went wrong in the background job
@@ -161,6 +160,26 @@ def poll_transcription_status(request, task_id):
             'status': str(task_result.info),  # This is the exception raised
         }
     return JsonResponse(response)
+
+def get_completed_transcriptions(request):
+    response = {}
+    responses = prepare_results(request)
+    response['result'] = responses
+    return JsonResponse(response)
+
+def prepare_results(request):
+    responses = []
+    output_dir_path: str = os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS/')
+    if os.path.isdir(output_dir_path):
+        # List the files in the output directory and construct the URLs
+        for filename in os.listdir(output_dir_path):
+            file_url = request.build_absolute_uri(os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS', filename))
+            responses.append({
+                'file_name': filename,
+                'file_url': file_url
+            })
+        responses.sort(key=lambda x: x['file_name'])
+    return responses
 
 def stop_transcription_task(request, task_id):
     task_result = transcription_task.AsyncResult(task_id)
@@ -205,3 +224,11 @@ def get_size_by_name(dict_list, file_name):
         if item.get('name') == file_name.removeprefix('UPLOADS/INPUT/'):
             return item.get('size')
     return None
+
+def has_subdirectories(directory_path):
+    # Iterate through the entries in the directory
+    for entry in os.scandir(directory_path):
+        # Check if the entry is a directory
+        if entry.is_dir():
+            return True
+    return False

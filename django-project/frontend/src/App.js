@@ -1,12 +1,12 @@
-import React, {useCallback, useState, useEffect, useRef} from 'react';
-import { useDropzone } from 'react-dropzone';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
+import {useDropzone} from 'react-dropzone';
 import axios from 'axios';
 //import Spinner  from './spinners'
-import { csrfToken } from './csrf';
 import Settings from "./Settings";
 import TranscriptionStatus from "./TranscriptionStatus";
 import Results from "./Results";
 import transcriberImage from "./logo-transcriber.png";
+import UcloudFiles from "./UcloudFiles";
 
 function App() {
     const formatDuration = (duration) => {
@@ -70,6 +70,39 @@ function App() {
     const [modelSize, setModelSize] = useState(getInitialString("modelSize", "large-v3"))
     const [language, setLanguage] = useState(getInitialString("language", "auto"))
     const [errorState, setErrorState] = useState(false);
+    const [ucloudFolderMounted, setUcloudFolderMounted] = useState(getInitialBooleanState("ucloudFolderMounted", false));
+
+    useEffect(() => {
+        const fetchData = async () => {
+            const response = await fetch('/scan-files/');
+            const scanInfo = await response.json();
+            const fileList = scanInfo.file_list;
+            const mountedFolder = scanInfo.mounted_folder;
+            console.debug('Scanned files from server:', fileList);
+            console.debug('Mounted folder: ', mountedFolder);
+            sessionStorage.setItem("scannedFiles", JSON.stringify(fileList))
+            sessionStorage.setItem("ucloudFolderMounted", JSON.stringify(mountedFolder))
+            setScannedFiles(fileList)
+            setUcloudFolderMounted(mountedFolder);
+        }
+        // call the async function
+        fetchData()
+            // catch any error
+            .catch(console.error);
+    }, []); // Empty dependency array ensures this runs only once on component mount
+
+    useEffect(() => {
+        const fetchResults = async () => {
+            const response = await fetch('/get-completed-transcriptions/');
+            const data = await response.json();
+            console.debug('Already completed transcription returned from server:', data.result);
+            setResults(data.result)
+        }
+        // call the async function
+        fetchResults()
+            // catch any error
+            .catch(console.error);
+    }, []); // Empty dependency array ensures this runs only once on component mount
 
     useEffect(() => {
         sessionStorage.setItem("modelSize", JSON.stringify(modelSize))
@@ -346,7 +379,8 @@ function App() {
         setScanning(true); // Disable the scan button
         try {
             const response = await fetch('/scan-files/');
-            const fileList = await response.json();
+            const scanInfo = await response.json();
+            const fileList = scanInfo.file_list;
             //console.debug('Scanned files:', fileList);
             setScannedFiles(fileList)
         } catch (error) {
@@ -444,29 +478,19 @@ function App() {
             <div className="title-container">
                 <img src={transcriberImage} alt="Transcriber" className="centered-image"/>
             </div>
-            <div {...getRootProps({className: 'dropzone'})}>
-                <input {...getInputProps()} />
-                {
-                    isDragActive ?
-                        <div>
-                            <p>Drop the files here ...</p>
-                        </div>
-                        :
-                        <div>
-                            <p>Drag 'n' drop file(s) here, or click to browse from your computer.</p>
-                        </div>
-                }
-            </div>
             {
                 (!transcribing && results.length === 0) && (
                     <div>
-                    <p className='helpText'>
-                        This application enables you to transcribe audio and video files. When files are dropped into the area above the <b>Selected files</b> list shows which files are selected for transcription.
-                        Choose <b>Show settings</b> if you need to modify the transcription model and/or language (default <b>large-v3</b> and <b>Automatic</b> respectively) or if you want to add files from a UCloud folder.
-                    </p>
-                    <p className='helpText'>
-                        When you are happy with the selection press the <b>Start transcription</b> button to start the transcription of the selected files.
-                    </p>
+                        <p className='helpText'>
+                            This application enables you to transcribe audio and video files. When files are dropped into
+                            the area below the <b>Selected files</b> list shows which files are selected for transcription.
+                            Choose <b>Show settings</b> if you need to modify the transcription model and/or language
+                            (default <b>large-v3</b> and <b>Automatic</b> respectively).
+                        </p>
+                        <p className='helpText'>
+                            When you are happy with the selection press the <b>Start transcription</b> button to start the
+                            transcription of the selected files.
+                        </p>
                     </div>
                 )
             }
@@ -486,7 +510,8 @@ function App() {
                 scannedAndLinkedFiles.length > 0 && scannedAndLinkedFiles.map((file, index) => (
                     <ul key={index}>
                         <li key={file.name + index}> {file.name} &nbsp;
-                            <button type='button' onClick={() => removeUCloudLinkedFile(file.target_path_sym_link)}>Remove</button>
+                            <button type='button' onClick={() => removeUCloudLinkedFile(file.target_path_sym_link)}>Remove
+                            </button>
                             <span className="ucloud-file">UCloud file</span>
                         </li>
                     </ul>
@@ -541,13 +566,36 @@ function App() {
                 {showSettings ? 'Hide settings' : 'Show settings'}
             </button>
 
+            <h2>Upload files from computer</h2>
+
+            <div {...getRootProps({className: 'dropzone'})}>
+                <input {...getInputProps()} />
+                {
+                    isDragActive ?
+                        <div>
+                            <p>Drop the files here ...</p>
+                        </div>
+                        :
+                        <div>
+                            <p>Drag 'n' drop file(s) here, or click to browse from your computer.</p>
+                        </div>
+                }
+            </div>
+
+            {
+                ucloudFolderMounted && (
+                    <UcloudFiles
+                        onAddUcloudFiles={onAddUcloudFiles}
+                        scannedFiles={scannedFiles}
+                        onScan={onScan}
+                        scanning={scanning}
+                    />
+                )
+            }
+
             {
                 showSettings && (
                     <Settings
-                        onScan={onScan}
-                        onAddUcloudFiles={onAddUcloudFiles}
-                        scanning={scanning}
-                        scannedFiles={scannedFiles}
                         onUpdateModel={onUpdateModel}
                         currentModelSize={modelSize}
                         onUpdateLanguage={onUpdateLanguage}
