@@ -484,7 +484,7 @@ function App() {
                         <p className='helpText'>
                             This application enables you to transcribe audio and video files. When files are dropped into
                             the area below the <b>Selected files</b> list shows which files are selected for transcription.
-                            Choose <b>Show settings</b> if you need to modify the transcription model and/or language
+                            <br/> Choose <b>Show settings</b> if you need to modify the transcription model and/or language
                             (default <b>large-v3</b> and <b>Automatic</b> respectively).
                         </p>
                         <p className='helpText'>
@@ -566,7 +566,18 @@ function App() {
                 {showSettings ? 'Hide settings' : 'Show settings'}
             </button>
 
-            <h2>Upload files from computer</h2>
+            {
+                showSettings && (
+                    <Settings
+                        onUpdateModel={onUpdateModel}
+                        currentModelSize={modelSize}
+                        onUpdateLanguage={onUpdateLanguage}
+                        currentLanguage={language}
+                    />
+                )
+            }
+
+            <h2>Upload files from the computer</h2>
 
             <div {...getRootProps({className: 'dropzone'})}>
                 <input {...getInputProps()} />
@@ -589,17 +600,6 @@ function App() {
                         scannedFiles={scannedFiles}
                         onScan={onScan}
                         scanning={scanning}
-                    />
-                )
-            }
-
-            {
-                showSettings && (
-                    <Settings
-                        onUpdateModel={onUpdateModel}
-                        currentModelSize={modelSize}
-                        onUpdateLanguage={onUpdateLanguage}
-                        currentLanguage={language}
                     />
                 )
             }
