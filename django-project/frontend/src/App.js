@@ -577,7 +577,7 @@ function App() {
                 )
             }
 
-            <h2>Upload files from computer</h2>
+            <h2>Upload files from the computer</h2>
 
             <div {...getRootProps({className: 'dropzone'})}>
                 <input {...getInputProps()} />
