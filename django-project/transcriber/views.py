@@ -86,7 +86,7 @@ def scan_files(request):
     os.makedirs(target_directory, exist_ok=True)
 
     # Define the allowed file extensions
-    allowed_extensions = {'.mp3', '.wav', '.m4a', '.mp4', '.mpeg'}
+    allowed_extensions = {'.mp3', '.wav', '.m4a', '.mp4', '.mpeg', '.mpg'}
 
     if mounted_folder:
         for root, dirs, files in os.walk(source_directory):

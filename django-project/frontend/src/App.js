@@ -469,7 +469,7 @@ function App() {
             "audio/wav": [".wav"],
             "audio/x-m4a": [".m4a"],
             "video/mp4": [".mp4"],
-            "video/mpeg": [".mpeg"]
+            "video/mpeg": [".mpeg", ".mpg"]
         }
     });
 
