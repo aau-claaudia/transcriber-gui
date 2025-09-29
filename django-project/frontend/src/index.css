@@ -300,3 +300,76 @@ td.file-name-merged {
   box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
   outline: none;
 }
+
+/* Container to align the switch and its text label */
+.toggle-container {
+  display: flex;
+  align-items: center;
+  gap: 12px; /* Adjust space between switch and text */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  margin-bottom: 2%;
+  margin-top: 2%;
+}
+
+/* The switch - a container for our custom checkbox */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;  /* Width of the switch */
+  height: 28px; /* Height of the switch */
+}
+
+/* Hide the default HTML checkbox */
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* The slider (the track and the knob) */
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  -webkit-transition: .4s;
+  transition: .4s;
+  border-radius: 28px; /* Should be equal to the height */
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px; /* Size of the knob */
+  width: 20px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  -webkit-transition: .4s;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+/* Styling for the 'on' state */
+input:checked + .slider {
+  background-color: #2196F3; /* A modern blue, feel free to change */
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #2196F3;
+}
+
+input:checked + .slider:before {
+  /*-webkit-transform: translateX(22px);*/
+  -ms-transform: translateX(22px);
+  transform: translateX(22px); /* Moves the knob to the right */
+}
+
+/* The text label next to the switch */
+.toggle-label {
+  color: #333;
+  user-select: none; /* Prevents text selection on click */
+}

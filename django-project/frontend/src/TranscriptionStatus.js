@@ -1,9 +1,12 @@
 import React from 'react';
 
-const TranscriptionStatus = ({ statusText, activeTask, percentageDone}) => {
+const TranscriptionStatus = ({ statusText, activeTask, percentageDone, transcribeAndShutdown}) => {
 
     return (
         <div style={{marginBottom: '5%'}}>
+            { transcribeAndShutdown && (
+                <p style={{fontStyle: "italic"}}> <b>The transcribe and shutdown setting is on. The UCloud job will stop when the transcription completes. The browser window can be closed.</b></p>
+            )}
             <p>{statusText}</p>
             <h3>Active transcription file list</h3>
             <table>
