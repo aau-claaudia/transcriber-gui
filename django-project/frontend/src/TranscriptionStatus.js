@@ -5,7 +5,7 @@ const TranscriptionStatus = ({ statusText, activeTask, percentageDone, transcrib
     return (
         <div style={{marginBottom: '5%'}}>
             { transcribeAndShutdown && (
-                <p style={{fontStyle: "italic"}}> <b>The transcribe and shutdown setting is on. The UCloud job will stop when the transcription completes. The browser window can be closed.</b></p>
+                <p><b><i> The "transcribe and stop" setting is on. The UCloud job will stop when the transcription completes. The browser window can be closed.</i></b></p>
             )}
             <p>{statusText}</p>
             <h3>Active transcription file list</h3>
