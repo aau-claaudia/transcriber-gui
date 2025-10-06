@@ -1,7 +1,6 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useDropzone} from 'react-dropzone';
 import axios from 'axios';
-//import Spinner  from './spinners'
 import Settings from "./Settings";
 import TranscriptionStatus from "./TranscriptionStatus";
 import Results from "./Results";
@@ -68,6 +67,7 @@ function App() {
     const [scanning, setScanning] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [transcribeAndShutdown, setTranscribeAndShutdown] = useState(getInitialBooleanState("transcribeAndShutdown",false));
+    const [serverStopped, setServerStopped] = useState(getInitialBooleanState("serverStopped",false));
     const [modelSize, setModelSize] = useState(getInitialString("modelSize", "large-v3"))
     const [language, setLanguage] = useState(getInitialString("language", "auto"))
     const [errorState, setErrorState] = useState(false);
@@ -114,6 +114,9 @@ function App() {
     useEffect(() => {
         sessionStorage.setItem("transcribeAndShutdown", JSON.stringify(transcribeAndShutdown))
     }, [transcribeAndShutdown]);
+    useEffect(() => {
+        sessionStorage.setItem("serverStopped", JSON.stringify(serverStopped))
+    }, [serverStopped]);
     useEffect(() => {
         sessionStorage.setItem("results", JSON.stringify(results))
     }, [results]);
@@ -185,14 +188,17 @@ function App() {
     const pollTranscriptionStatus = useCallback((taskId) => {
         console.debug("Running poll funtion.");
         console.debug("Transcriptionid = " + taskId);
-        if (taskId && transcribeAndShutdown) {
-            // if the job shutdown setting is on do not poll, just show status
-            console.debug("Transcribe and shutdown, only showing status and ETA.");
-            updateStatusInformation();
-        } else if (taskId) {
+        if (taskId) {
             console.debug("Requesting status from server.");
             fetch(`/poll-transcription-status/${taskId}/`)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        // Throw an error if the server response is not OK (e.g., 404, 500).
+                        // This prevents trying to parse an HTML error page as JSON.
+                        throw new Error(`Server is unavailable or returned an error: ${response.status} ${response.statusText}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     // debug logging the data returned from the server
                     console.debug('Task status:', data);
@@ -224,7 +230,12 @@ function App() {
                     }
                 })
                 .catch(error => {
-                    console.error('Error polling task:', error);
+                    if (transcribeAndShutdown) {
+                        // the server has now stopped, and we can update to show this information on the status page
+                        setServerStopped(true);
+                    } else {
+                        console.error('Error polling task:', error);
+                    }
                 });
         } else {
             console.debug("Transcription task was cancelled.")
@@ -646,6 +657,7 @@ function App() {
                         activeTask={activeTask}
                         percentageDone={percentageDone}
                         transcribeAndShutdown={transcribeAndShutdown}
+                        serverStopped={serverStopped}
                     />
                 )
             }

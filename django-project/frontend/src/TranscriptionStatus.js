@@ -1,11 +1,14 @@
 import React from 'react';
 
-const TranscriptionStatus = ({ statusText, activeTask, percentageDone, transcribeAndShutdown}) => {
+const TranscriptionStatus = ({ statusText, activeTask, percentageDone, transcribeAndShutdown, serverStopped}) => {
 
     return (
         <div style={{marginBottom: '5%'}}>
-            { transcribeAndShutdown && (
+            { (transcribeAndShutdown && !serverStopped) && (
                 <p><b><i> The "transcribe and stop" setting is on. The UCloud job will stop when the transcription completes. The browser window can be closed.</i></b></p>
+            )}
+            { (transcribeAndShutdown && serverStopped) && (
+                <p><b><i> The "transcribe and stop" setting is on. The UCloud job has now stopped.</i></b></p>
             )}
             <p>{statusText}</p>
             <h3>Active transcription file list</h3>
@@ -34,7 +37,7 @@ const TranscriptionStatus = ({ statusText, activeTask, percentageDone, transcrib
                 </tbody>
             </table>
             <h3>Estimated progress based on data size</h3>
-            <progress className="progress-bar" value={percentageDone}/>
+            <progress className="progress-bar" value={transcribeAndShutdown && serverStopped ? 1.0 : percentageDone}/>
         </div>
     );
 };
