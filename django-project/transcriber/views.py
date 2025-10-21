@@ -1,3 +1,4 @@
+from celery import chain
 from django.conf import settings
 from django.shortcuts import render
 from rest_framework.response import Response
@@ -7,8 +8,7 @@ import os
 import json
 from django.http import JsonResponse, HttpResponse, Http404
 from rest_framework.views import APIView
-from .tasks import transcription_task
-from celery.result import AsyncResult
+from .tasks import transcription_task, shutdown_server_task
 
 def index(request):
     print(request)
@@ -46,13 +46,26 @@ class FileUploadView(APIView):
                         return Response(file_serializer.errors, status=400)
             else:
                 return Response(serializer.errors, status=400)
-        # Get the model and language from the request
+        # Get the model, language and shutdown flag from the request
         model = request.data.get('model')
         language = request.data.get('language')
-        # Start the Celery task
-        task = transcription_task.delay(model, language)
-        # Return the task ID to the client
-        return JsonResponse({'task_id': task.id})
+        transcribe_and_shutdown = request.data.get('transcribe_and_shutdown')
+
+        if transcribe_and_shutdown == 'true':
+            # This gets the proces id of the parent proces
+            master_pid = os.getppid()
+            # Chain the transcription task with the shutdown task.
+            # The shutdown_server_task will only execute after transcription_task succeeds.
+            # Note: The result of the chain is the result of the *last* task in the chain.
+            task_chain = chain(transcription_task.s(model, language), shutdown_server_task.s(master_pid))
+            # Start the chained Celery task
+            task = task_chain.apply_async()
+            return JsonResponse({'task_id': task.parent.id})
+        else:
+            # Start only the transcription task
+            task = transcription_task.delay(model, language)
+            return JsonResponse({'task_id': task.id})
+
 
 class LinkFilesView(APIView):
     parser_classes = (MultiPartParser, FormParser)
@@ -183,7 +196,7 @@ def prepare_results(request):
 
 def stop_transcription_task(request, task_id):
     task_result = transcription_task.AsyncResult(task_id)
-    task_result.abort()  # Abort the task
+    task_result.revoke(terminate=True)
     return JsonResponse({'status': 'Task aborted successfully'})
 
 def serve_file(request, path):

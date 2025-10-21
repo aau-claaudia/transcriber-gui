@@ -3,7 +3,7 @@ from celery.contrib.abortable import AbortableTask
 import subprocess
 import os
 import shutil
-import time
+import signal
 
 from django.conf import settings
 
@@ -34,19 +34,6 @@ def transcription_task(self, model_size, language):
         # Start the subprocess
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-        # Periodically check if the task is aborted
-        while process.poll() is None:  # While the process is still running
-            if self.is_aborted():
-                print("Task was aborted. Terminating subprocess...")
-                process.terminate()  # Terminate the subprocess
-                process.wait()  # Wait for the process to terminate
-                print("Process terminated.")
-                # clean up the input files
-                clean_dir(directory_path)
-                print("Input folder cleaned.")
-                return "TASK ABORTED"
-            time.sleep(2)  # Add a 2-second delay to reduce CPU usage
-
         # Capture the output and error after the process completes
         output, error = process.communicate()
         write_transcriber_output(error, output, transcriber_output_file)
@@ -56,8 +43,14 @@ def transcription_task(self, model_size, language):
     finally:
         # Ensure the subprocess is terminated if it is still running
         if process and process.poll() is None:
-            process.terminate()
-            process.wait()
+            # this is only executed if the task was revoked before the proces could complete
+            print("Task was aborted. Terminating subprocess...")
+            process.terminate()  # Terminate the subprocess
+            process.wait()  # Wait for the process to terminate
+            print("Process terminated.")
+            # clean up the input files
+            clean_dir(directory_path)
+            print("Input folder cleaned.")
 
     # moved uploaded files from the input directory to COMPLETED folder
     transcribed_path: str = os.path.join(settings.MEDIA_ROOT, 'COMPLETED')
@@ -72,6 +65,21 @@ def transcription_task(self, model_size, language):
             print(f"Moved file: {source_path} to {target_path}")
 
     return "Task completed"
+
+@shared_task(bind=True, base=AbortableTask)
+def shutdown_server_task(model_size, language, master_pid):
+    """
+    A Celery task to gracefully shut down the server.
+    """
+    print("Transcription task has finished, stopping server.")
+    try:
+        print(f"Shutting down Gunicorn master process (PID: {master_pid})...")
+        # SIGTERM is a more common signal for graceful shutdown.
+        os.kill(master_pid, signal.SIGTERM)
+        # and shut down the celery worker
+        os.kill(os.getppid(), signal.SIGTERM)
+    except Exception as e:
+        print(f"Error shutting down server: {e}")
 
 def write_transcriber_output(error, output, transcriber_output_file):
     with open(transcriber_output_file, 'w') as t_file:

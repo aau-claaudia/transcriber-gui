@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Settings = ({onUpdateModel, currentModelSize, onUpdateLanguage, currentLanguage}) => {
+const Settings = ({onUpdateModel, currentModelSize, onUpdateLanguage, currentLanguage, onUpdateTranscribeAndShutdown, currentTranscribeAndShutdown}) => {
     // Function to handle model change
     const handleModelChange = (event) => {
         onUpdateModel(event.target.value);
@@ -11,9 +11,33 @@ const Settings = ({onUpdateModel, currentModelSize, onUpdateLanguage, currentLan
         onUpdateLanguage(event.target.value);
     };
 
+    // Function to handle shutdown change
+    const handleTranscribeAndShutdown = (event) => {
+        onUpdateTranscribeAndShutdown(event.target.checked);
+    }
+
     return (
         <div style={{marginBottom: '5%'}}>
             <h2>Settings</h2>
+
+            {/* Section for setting transcribe and shutdown mode */}
+            <div>
+                <h3>Transcribe and stop</h3>
+                <div className="toggle-container">
+                    <label className="toggle-switch" htmlFor="shutdown-toggle">
+                        <input
+                            type="checkbox"
+                            id="shutdown-toggle"
+                            checked={currentTranscribeAndShutdown}
+                            onChange={handleTranscribeAndShutdown}
+                        />
+                        <span className="slider"></span>
+                    </label>
+                    <span className="toggle-label">Stop UCloud job after transcription completes</span>
+                </div>
+            </div>
+            <hr/>
+
             {/* Section for setting a model */}
             <div>
                 <h3>Select model</h3>
