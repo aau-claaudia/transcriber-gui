@@ -48,6 +48,25 @@ function App() {
         return dataFromSession ? JSON.parse(dataFromSession) : value;
     }
 
+    // Function to determine the best default model based on availability and preference order.
+    const getDefaultModel = (list) => {
+        const preferenceOrder = ["large-v3", "large-v3-turbo", "medium", "small", "base"];
+        const availableModels = list.map(modelStr => {
+            const [modelName] = modelStr.split(' ');
+            const isDisabled = modelStr.includes("(not enough memory)");
+            return { name: modelName, disabled: isDisabled };
+        });
+
+        for (const preferredModel of preferenceOrder) {
+            const model = availableModels.find(m => m.name === preferredModel);
+            if (model && !model.disabled) {
+                return model.name;
+            }
+        }
+        // Fallback to the first available model if no preferred models are available
+        return availableModels.find(m => !m.disabled)?.name || '';
+    };
+
     const [files, setFiles] = useState([]);
     const [scannedFiles, setScannedFiles] = useState([]);
     const [scannedAndLinkedFiles, setScannedAndLinkedFiles] = useState([]);
@@ -68,23 +87,34 @@ function App() {
     const [showSettings, setShowSettings] = useState(false);
     const [transcribeAndShutdown, setTranscribeAndShutdown] = useState(getInitialBooleanState("transcribeAndShutdown",false));
     const [serverStopped, setServerStopped] = useState(getInitialBooleanState("serverStopped",false));
-    const [modelSize, setModelSize] = useState(getInitialString("modelSize", "large-v3"))
+    const [modelSize, setModelSize] = useState("large-v3");
+    const [modelList, setModelList] = useState([]);
     const [language, setLanguage] = useState(getInitialString("language", "auto"))
     const [errorState, setErrorState] = useState(false);
     const [ucloudFolderMounted, setUcloudFolderMounted] = useState(getInitialBooleanState("ucloudFolderMounted", false));
 
     useEffect(() => {
         const fetchData = async () => {
-            const response = await fetch('/scan-files/');
-            const scanInfo = await response.json();
-            const fileList = scanInfo.file_list;
-            const mountedFolder = scanInfo.mounted_folder;
-            console.debug('Scanned files from server:', fileList);
-            console.debug('Mounted folder: ', mountedFolder);
+            const response = await fetch('/get-initialization-data/');
+            const initData = await response.json();
+            const fileList = initData.file_list;
+            const mountedFolder = initData.mounted_folder;
+            //console.debug('Scanned files from server:', fileList);
+            //console.debug('Mounted folder: ', mountedFolder);
             sessionStorage.setItem("scannedFiles", JSON.stringify(fileList))
             sessionStorage.setItem("ucloudFolderMounted", JSON.stringify(mountedFolder))
             setScannedFiles(fileList)
             setUcloudFolderMounted(mountedFolder);
+            // update the list of whisper models
+            const modelList = initData.model_list;
+            //console.debug('Model list:', modelList)
+            if (modelList && modelList.length > 0) {
+                //console.debug(data.model_list)
+                setModelSize(getDefaultModel(modelList))
+                setModelList(modelList);
+            } else {
+                console.debug("No whisper models returned.");
+            }
         }
         // call the async function
         fetchData()
@@ -105,9 +135,6 @@ function App() {
             .catch(console.error);
     }, []); // Empty dependency array ensures this runs only once on component mount
 
-    useEffect(() => {
-        sessionStorage.setItem("modelSize", JSON.stringify(modelSize))
-    }, [modelSize]);
     useEffect(() => {
         sessionStorage.setItem("language", JSON.stringify(language))
     }, [language]);
@@ -403,9 +430,9 @@ function App() {
         setErrorState(false);
         setScanning(true); // Disable the scan button
         try {
-            const response = await fetch('/scan-files/');
-            const scanInfo = await response.json();
-            const fileList = scanInfo.file_list;
+            const response = await fetch('/get-initialization-data/');
+            const initData = await response.json();
+            const fileList = initData.file_list;
             //console.debug('Scanned files:', fileList);
             setScannedFiles(fileList)
         } catch (error) {
@@ -600,6 +627,7 @@ function App() {
                     <Settings
                         onUpdateModel={onUpdateModel}
                         currentModelSize={modelSize}
+                        modelList={modelList}
                         onUpdateLanguage={onUpdateLanguage}
                         currentLanguage={language}
                         onUpdateTranscribeAndShutdown={onUpdateTranscribeAndShutdown}

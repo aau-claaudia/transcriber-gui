@@ -24,7 +24,7 @@ source .venv/bin/activate
 ```
 Now install the needed python libraries
 ``` bash
-pip install django djangorestframework django-cors-headers celery redis python-dotenv
+pip install django djangorestframework django-cors-headers celery redis python-dotenv torch
 ```
 
 Create the folders for managing file uploads and output
@@ -37,9 +37,11 @@ mkdir uploads
 
 Prepare and start the Django backend.
 Firstly create an environment file for test in the "transcriber-gui/django-project" directory called ".env" with the following content
+MEMORY_IN_GIGS is used for determining the usable whisper models.
 ```
 SECRET_KEY='django-insecure-wr3t_w3m5qmgzn(4&f*5uhq*kqd^f21eu!p84jl0dw!8y*=e=^'
 DEBUG=True
+MEMORY_IN_GIGS=64
 ```
 Next migrate the database and start the development server
 ``` bash

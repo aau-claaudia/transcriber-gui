@@ -26,6 +26,7 @@ ALLOWED_HOSTS = ['*']
 
 SECRET_KEY = os.environ.get('SECRET_KEY')
 DEBUG = os.environ.get('DEBUG') == 'True'
+MEMORY_IN_GIGS = os.environ.get('MEMORY_IN_GIGS', '16')
 
 # Application definition
 

@@ -9,6 +9,7 @@ import json
 from django.http import JsonResponse, HttpResponse, Http404
 from rest_framework.views import APIView
 from .tasks import transcription_task, shutdown_server_task
+from .model_memory_util import get_whisper_model_list
 
 def index(request):
     print(request)
@@ -85,7 +86,7 @@ class LinkFilesView(APIView):
             return Response(serializer.errors, status=400)
         return Response({'error': 'No files data provided'}, status=400)
 
-def scan_files(request):
+def get_initialization_data(request):
     source_directory = settings.UCLOUD_DIRECTORY
     target_directory = os.path.join(settings.MEDIA_ROOT, 'UPLOADS/INPUT')
     scan_info = {}
@@ -124,6 +125,9 @@ def scan_files(request):
                     file_list.append(file_info)
 
     scan_info['file_list'] = file_list
+
+    # get the list of annotated whisper models
+    scan_info['model_list'] = get_whisper_model_list()
 
     return JsonResponse(scan_info)
 
