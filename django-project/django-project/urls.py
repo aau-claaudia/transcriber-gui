@@ -18,7 +18,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, re_path
-from transcriber.views import FileUploadView, poll_transcription_status, stop_transcription_task, index, serve_file, scan_files, LinkFilesView, RemoveLinkView, get_completed_transcriptions
+from transcriber.views import FileUploadView, poll_transcription_status, stop_transcription_task, index, serve_file, get_initialization_data, LinkFilesView, RemoveLinkView, get_completed_transcriptions
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -26,7 +26,7 @@ urlpatterns = [
     path('poll-transcription-status/<str:task_id>/', poll_transcription_status, name='poll_transcription_status'),
     path('stop_transcription_task/<str:task_id>/', stop_transcription_task, name='stop_transcription_task'),
     path('get-completed-transcriptions/', get_completed_transcriptions, name='get_completed_transcriptions'),
-    path('scan-files/', scan_files, name='scan_files'),
+    path('get-initialization-data/', get_initialization_data, name='get_initialization_data'),
     path('link-files/', LinkFilesView.as_view(), name='link_files'),
     path('remove-link/', RemoveLinkView.as_view(), name='remove_link'),
     re_path(r'^.*media/TRANSCRIPTIONS/(?P<path>.*)$', serve_file, name='serve_media_file'), # pattern for download
