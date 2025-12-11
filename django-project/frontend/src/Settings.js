@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Settings = ({onUpdateModel, currentModelSize, modelList, onUpdateLanguage, currentLanguage, onUpdateTranscribeAndShutdown, currentTranscribeAndShutdown}) => {
+const Settings = ({onUpdateModel, currentModelSize, availableMemory, whisperModels, onUpdateLanguage, currentLanguage, onUpdateTranscribeAndShutdown, currentTranscribeAndShutdown}) => {
     // Function to handle model change
     const handleModelChange = (event) => {
         onUpdateModel(event.target.value);
@@ -43,13 +43,16 @@ const Settings = ({onUpdateModel, currentModelSize, modelList, onUpdateLanguage,
                 <h3>Select model</h3>
                 <div className="select-box">
                     <select defaultValue={currentModelSize} onChange={handleModelChange}>
-                        {modelList.map((modelStr) => {
-                            const modelName = modelStr.split(' ')[0];
-                            const isDisabled = modelStr.includes("(not enough memory)");
-                            return <option key={modelName} value={modelName} disabled={isDisabled}>{modelStr}</option>;
+                        {Object.entries(whisperModels).map(([modelName, memoryReq]) => {
+                            return <option key={modelName} value={modelName}>{modelName}</option>;
                         })}
                     </select>
                 </div>
+                {whisperModels[currentModelSize] > availableMemory && (
+                    <div style={{ color: '#FF4D00', marginTop: '8px', fontSize: '0.9em' }}>
+                        Warning: This model requires {whisperModels[currentModelSize]} GB of memory, but only {availableMemory.toFixed(1)} GB is available. The transcription process may run out of memory.
+                    </div>
+                )}
             </div>
             <hr/>
 
