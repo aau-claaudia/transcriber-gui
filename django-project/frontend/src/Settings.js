@@ -50,7 +50,7 @@ const Settings = ({onUpdateModel, currentModelSize, availableMemory, whisperMode
                 </div>
                 {whisperModels[currentModelSize] > availableMemory && (
                     <div className="memory-warning">
-                        Warning: It is recommended to run transcriber on a machine type with at least 16 cores / 64 GB of RAM. Using this model on a small machine will often result in slow transcription and/or running out of memory.
+                        Warning: It is recommended to run transcriber on a machine type with at least 16 cores / 64 GB of RAM. Using this model on a small machine may result in slow transcription and/or running out of memory.
                     </div>
                 )}
             </div>
