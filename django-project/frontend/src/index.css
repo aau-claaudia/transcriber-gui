@@ -373,3 +373,10 @@ input:checked + .slider:before {
   color: #333;
   user-select: none; /* Prevents text selection on click */
 }
+
+/* styling for the warning about insufficient memory in the settings */
+.memory-warning {
+  color: #FF4D00;
+  margin-top: 8px;
+  font-size: 0.9em;
+}

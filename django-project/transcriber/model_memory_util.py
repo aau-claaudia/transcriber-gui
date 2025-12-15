@@ -1,12 +1,6 @@
 from django.conf import settings
 import torch
 
-MINIMUM_MEMORY_CONFIG = 60.0
-
-def log_warning():
-    message = "Note: You are running transcriber on a machine with less than 16 cores / 64 GB of RAM. This will often result in slow transcription and/or running out of memory."
-    print(message)
-
 def calculate_available_memory() -> float:
     """
     Method for calculating the available memory for working with transcriptions.
@@ -27,15 +21,11 @@ def calculate_available_memory() -> float:
                 gpu_memory += total_mem_gb
 
             print(f"Available GPU memory: {gpu_memory:.2f} GB")
-            if gpu_memory < MINIMUM_MEMORY_CONFIG:
-                log_warning()
             return gpu_memory
         else:
             # use the number of machine RAM if there is no GPU available
             machine_memory = float(settings.MEMORY_IN_GIGS)
             print("Available memory: " + str(machine_memory) + " GB")
-            if machine_memory < MINIMUM_MEMORY_CONFIG:
-                log_warning()
             return machine_memory
     except Exception as e:
         print("Error calculating available memory - using default value, 16GB.")

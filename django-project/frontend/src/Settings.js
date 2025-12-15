@@ -49,8 +49,8 @@ const Settings = ({onUpdateModel, currentModelSize, availableMemory, whisperMode
                     </select>
                 </div>
                 {whisperModels[currentModelSize] > availableMemory && (
-                    <div style={{ color: '#FF4D00', marginTop: '8px', fontSize: '0.9em' }}>
-                        Warning: This model requires {whisperModels[currentModelSize]} GB of memory, but only {availableMemory.toFixed(1)} GB is available. The transcription process may run out of memory.
+                    <div className="memory-warning">
+                        Warning: It is recommended to run transcriber on a machine type with at least 16 cores / 64 GB of RAM. Using this model on a small machine will often result in slow transcription and/or running out of memory.
                     </div>
                 )}
             </div>
