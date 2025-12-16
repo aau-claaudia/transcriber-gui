@@ -9,7 +9,7 @@ import json
 from django.http import JsonResponse, HttpResponse, Http404
 from rest_framework.views import APIView
 from .tasks import transcription_task, shutdown_server_task
-from .model_memory_util import get_whisper_model_list
+from .model_memory_util import calculate_available_memory
 
 def index(request):
     print(request)
@@ -127,7 +127,7 @@ def get_initialization_data(request):
     scan_info['file_list'] = file_list
 
     # get the list of annotated whisper models
-    scan_info['model_list'] = get_whisper_model_list()
+    scan_info['available_memory'] = calculate_available_memory()
 
     return JsonResponse(scan_info)
 

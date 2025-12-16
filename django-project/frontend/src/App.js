@@ -48,23 +48,25 @@ function App() {
         return dataFromSession ? JSON.parse(dataFromSession) : value;
     }
 
-    // Function to determine the best default model based on availability and preference order.
-    const getDefaultModel = (list) => {
-        const preferenceOrder = ["large-v3", "large-v3-turbo", "medium", "small", "base"];
-        const availableModels = list.map(modelStr => {
-            const [modelName] = modelStr.split(' ');
-            const isDisabled = modelStr.includes("(not enough memory)");
-            return { name: modelName, disabled: isDisabled };
-        });
+    const WHISPER_MODELS = {
+        "base": 1.0,
+        "small": 2.0,
+        "medium": 5.0,
+        "large-v3": 10.0,
+        "large-v3-turbo": 6.0,
+    }
 
-        for (const preferredModel of preferenceOrder) {
-            const model = availableModels.find(m => m.name === preferredModel);
-            if (model && !model.disabled) {
-                return model.name;
-            }
-        }
-        // Fallback to the first available model if no preferred models are available
-        return availableModels.find(m => !m.disabled)?.name || '';
+    /**
+     * Determines the best default model based on available memory.
+     * It returns the name of the largest model that fits the memory constraints.
+     */
+    const getDefaultModel = (availableMemory) => {
+        const fittingModels = Object.entries(WHISPER_MODELS)
+            .filter(([_, memoryReq]) => memoryReq <= availableMemory)
+            .sort(([, memA], [, memB]) => memB - memA); // Sort by memory descending
+
+        // Return the name of the largest fitting model, or the most common if no models fit
+        return fittingModels.length > 0 ? fittingModels[0][0] : 'large-v3';
     };
 
     const [files, setFiles] = useState([]);
@@ -88,7 +90,7 @@ function App() {
     const [transcribeAndShutdown, setTranscribeAndShutdown] = useState(getInitialBooleanState("transcribeAndShutdown",false));
     const [serverStopped, setServerStopped] = useState(getInitialBooleanState("serverStopped",false));
     const [modelSize, setModelSize] = useState("large-v3");
-    const [modelList, setModelList] = useState([]);
+    const [availableMemory, setAvailableMemory] = useState(16.0);
     const [language, setLanguage] = useState(getInitialString("language", "auto"))
     const [errorState, setErrorState] = useState(false);
     const [ucloudFolderMounted, setUcloudFolderMounted] = useState(getInitialBooleanState("ucloudFolderMounted", false));
@@ -105,15 +107,18 @@ function App() {
             sessionStorage.setItem("ucloudFolderMounted", JSON.stringify(mountedFolder))
             setScannedFiles(fileList)
             setUcloudFolderMounted(mountedFolder);
-            // update the list of whisper models
-            const modelList = initData.model_list;
-            //console.debug('Model list:', modelList)
-            if (modelList && modelList.length > 0) {
-                //console.debug(data.model_list)
-                setModelSize(getDefaultModel(modelList))
-                setModelList(modelList);
+
+            // get the size of the available memory
+            const memory = initData.available_memory;
+            console.debug('Available memory:', memory);
+            if (memory && !isNaN(parseFloat(memory))) {
+                const memoryParsed = parseFloat(memory);
+                setAvailableMemory(memoryParsed);
+                setModelSize(getDefaultModel(memoryParsed));
             } else {
-                console.debug("No whisper models returned.");
+                console.debug("Unable to parse available memory as float value. Defaulting to 16.0 GB.")
+                setAvailableMemory(16.0);
+                setModelSize("large-v3");
             }
         }
         // call the async function
@@ -627,7 +632,8 @@ function App() {
                     <Settings
                         onUpdateModel={onUpdateModel}
                         currentModelSize={modelSize}
-                        modelList={modelList}
+                        availableMemory={availableMemory}
+                        whisperModels={WHISPER_MODELS}
                         onUpdateLanguage={onUpdateLanguage}
                         currentLanguage={language}
                         onUpdateTranscribeAndShutdown={onUpdateTranscribeAndShutdown}
