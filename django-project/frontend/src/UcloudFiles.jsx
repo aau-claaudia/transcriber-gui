@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import Spinner from "./spinners";
+import Spinner from "./spinners.jsx";
 
 const UcloudFiles = ({ onAddUcloudFiles, scannedFiles, onScan, scanning}) => {
     const [selectedFiles, setSelectedFiles] = useState([]);

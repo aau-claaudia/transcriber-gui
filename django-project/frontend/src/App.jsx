@@ -1,11 +1,11 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useDropzone} from 'react-dropzone';
 import axios from 'axios';
-import Settings from "./Settings";
-import TranscriptionStatus from "./TranscriptionStatus";
-import Results from "./Results";
+import Settings from "./Settings.jsx";
+import TranscriptionStatus from "./TranscriptionStatus.jsx";
+import Results from "./Results.jsx";
 import transcriberImage from "./logo-transcriber.png";
-import UcloudFiles from "./UcloudFiles";
+import UcloudFiles from "./UcloudFiles.jsx";
 
 function App() {
     const formatDuration = (duration) => {
