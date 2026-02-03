@@ -5,6 +5,22 @@ const UcloudFiles = ({ onAddUcloudFiles, scannedFiles, onScan, scanning}) => {
     const [selectedFiles, setSelectedFiles] = useState([]);
     const [checkedFiles, setCheckedFiles] = useState({});
 
+    const allSelected = scannedFiles.length > 0 && selectedFiles.length === scannedFiles.length;
+
+    const handleSelectAll = () => {
+        if (allSelected) {
+            setSelectedFiles([]);
+            setCheckedFiles({});
+        } else {
+            setSelectedFiles([...scannedFiles]);
+            const newChecked = {};
+            scannedFiles.forEach((_, index) => {
+                newChecked[index] = true;
+            });
+            setCheckedFiles(newChecked);
+        }
+    };
+
     // Function to handle checkbox change
     const handleAddFile = (file, fileIndex) => {
         // change the state to checked for the input
@@ -77,7 +93,11 @@ const UcloudFiles = ({ onAddUcloudFiles, scannedFiles, onScan, scanning}) => {
                         <table>
                             <thead>
                             <tr>
-                                <th>Select</th>
+                                <th>
+                                    <input type="checkbox"
+                                           onChange={handleSelectAll}
+                                           checked={allSelected}/>
+                                </th>
                                 <th>Name</th>
                                 <th>Path</th>
                                 <th>Size (MB)</th>
