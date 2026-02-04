@@ -4,12 +4,15 @@ import subprocess
 import os
 import shutil
 import signal
+import logging
 
 from django.conf import settings
 
+logger = logging.getLogger(__name__)
+
 @shared_task(bind=True, base=AbortableTask)
 def transcription_task(self, model_size, language):
-    print('starting the transcription task now...')
+    logger.info('Starting the transcription task now...')
     directory_path: str = os.path.join(settings.MEDIA_ROOT, 'UPLOADS/INPUT')
     output_dir_path: str = os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS/')
     transcriber_output_file: str = os.path.join(output_dir_path, "transcriber_output.txt")
@@ -44,13 +47,12 @@ def transcription_task(self, model_size, language):
         # Ensure the subprocess is terminated if it is still running
         if process and process.poll() is None:
             # this is only executed if the task was revoked before the proces could complete
-            print("Task was aborted. Terminating subprocess...")
+            logger.info("Transcription task was aborted. Terminating subprocess...")
             process.terminate()  # Terminate the subprocess
             process.wait()  # Wait for the process to terminate
-            print("Process terminated.")
+            logger.info("Process terminated.")
             # clean up the input files
             clean_dir(directory_path)
-            print("Input folder cleaned.")
 
     # moved uploaded files from the input directory to COMPLETED folder
     transcribed_path: str = os.path.join(settings.MEDIA_ROOT, 'COMPLETED')
@@ -62,7 +64,7 @@ def transcription_task(self, model_size, language):
         # Check if the item is a file (not a directory)
         if os.path.isfile(source_path):
             shutil.move(source_path, target_path)
-            print(f"Moved file: {source_path} to {target_path}")
+            logging.info(f"Moved file: {source_path} to {target_path}")
 
     return "Task completed"
 
@@ -71,15 +73,15 @@ def shutdown_server_task(model_size, language, master_pid):
     """
     A Celery task to gracefully shut down the server.
     """
-    print("Transcription task has finished, stopping server.")
+    logger.info("Transcription task has finished, stopping server.")
     try:
-        print(f"Shutting down Gunicorn master process (PID: {master_pid})...")
+        #logging.debug(f"Shutting down Gunicorn master process (PID: {master_pid})...")
         # SIGTERM is a more common signal for graceful shutdown.
         os.kill(master_pid, signal.SIGTERM)
         # and shut down the celery worker
         os.kill(os.getppid(), signal.SIGTERM)
     except Exception as e:
-        print(f"Error shutting down server: {e}")
+        logging.warning(f"Error shutting down server: {e}")
 
 def write_transcriber_output(error, output, transcriber_output_file):
     with open(transcriber_output_file, 'w') as t_file:
@@ -92,4 +94,4 @@ def clean_dir(directory):
         # Check if the item is a file (not a directory)
         if os.path.isfile(source_path):
             os.remove(source_path)
-            print(f"Removed file: {source_path}")
+            #logging.debug(f"Removed file: {source_path}")

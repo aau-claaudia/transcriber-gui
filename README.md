@@ -41,6 +41,9 @@ MEMORY_IN_GIGS is used for determining the usable whisper models.
 ```
 SECRET_KEY='django-insecure-wr3t_w3m5qmgzn(4&f*5uhq*kqd^f21eu!p84jl0dw!8y*=e=^'
 DEBUG=True
+DJANGO_LOG_HANDLER='console'
+DJANGO_LOG_LEVEL='DEBUG'
+DJANGO_LOG_FILE='/home/nikko/projects/transcriber-gui/django.log'
 MEMORY_IN_GIGS=64
 ```
 Next migrate the database and start the development server
@@ -62,9 +65,7 @@ python -m celery -A django-project worker
 Checkout and install the transcriber Python application
 ``` bash
 cd transcriber
-git clone --depth 1 --single-branch --recursive --shallow-submodules -b "V1.7" https://github.com/aau-claaudia/transcriber.git aau-whisper
-pip install --no-cache-dir numpy==1.26.4
-pip install --no-cache-dir faster-whisper==1.0.0
+git clone --depth 1 --single-branch --recursive --shallow-submodules -b "V1.16" https://github.com/aau-claaudia/transcriber.git aau-whisper
 cd aau-whisper
 pip install -r requirements.txt
 pip install -e .
