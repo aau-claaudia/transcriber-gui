@@ -1,5 +1,8 @@
 from django.conf import settings
 import torch
+import logging
+
+logger = logging.getLogger(__name__)
 
 def calculate_available_memory() -> float:
     """
@@ -12,21 +15,21 @@ def calculate_available_memory() -> float:
         if torch.cuda.is_available():
             gpu_memory = 0.0
             device_count = torch.cuda.device_count()
-            print(f"Found {device_count} CUDA-enabled GPU(s).")
+            #logging.debug(f"Found {device_count} CUDA-enabled GPU(s).")
 
             for i in range(device_count):
                 # Total memory
                 total_mem_gb = torch.cuda.get_device_properties(i).total_memory / (1024**3)
-                print(f"Total VRAM on device: {total_mem_gb:.2f} GB")
+                #logging.debug(f"Total VRAM on device: {total_mem_gb:.2f} GB")
                 gpu_memory += total_mem_gb
 
-            print(f"Available GPU memory: {gpu_memory:.2f} GB")
+            logger.info(f"Available GPU memory: {gpu_memory:.2f} GB")
             return gpu_memory
         else:
             # use the number of machine RAM if there is no GPU available
             machine_memory = float(settings.MEMORY_IN_GIGS)
-            print("Available memory: " + str(machine_memory) + " GB")
+            logger.info("Available memory: " + str(machine_memory) + " GB")
             return machine_memory
     except Exception as e:
-        print("Error calculating available memory - using default value, 16GB.")
+        logger.warning("Error calculating available memory - using default value, 16GB.")
         return 16.0

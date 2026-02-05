@@ -10,16 +10,17 @@ from django.http import JsonResponse, HttpResponse, Http404
 from rest_framework.views import APIView
 from .tasks import transcription_task, shutdown_server_task
 from .model_memory_util import calculate_available_memory
+import logging
+
+logger = logging.getLogger(__name__)
 
 def index(request):
-    print(request)
     return render(request, 'frontend/build/index.html')
 
 class FileUploadView(APIView):
     parser_classes = (MultiPartParser, FormParser)
 
     def post(self, request, *args, **kwargs):
-        #print(request.data)
         file_meta_data_list = []
         if request.data and request.data.get('files') and request.data.get('file_meta_data'):
             # parse drop zone file meta data
@@ -29,12 +30,10 @@ class FileUploadView(APIView):
                 serializer = MultipleFileMetaDataSerializer(data={'files': meta_data})
                 if serializer.is_valid():
                     file_meta_data_list = serializer.validated_data['files']
-                    #print(file_meta_data_list)
             # parse uploaded file data
             serializer = MultipleFileUploadSerializer(data=request.data)
             if serializer.is_valid():
                 files = serializer.validated_data['files']
-                #print(files)
                 for file in files:
                     file_serializer = FileUploadSerializer(data={'file': file})
                     if file_serializer.is_valid():
@@ -75,7 +74,6 @@ class LinkFilesView(APIView):
         files_json = request.data.get('files')
         if files_json:
             files_data = json.loads(files_json)
-            #print(files_data)
             serializer = MultipleFileMetaDataSerializer(data={'files': files_data})
             if serializer.is_valid():
                 file_meta_data = serializer.validated_data['files']
@@ -103,6 +101,7 @@ def get_initialization_data(request):
     allowed_extensions = {'.mp3', '.wav', '.m4a', '.mp4', '.mpeg', '.mpg'}
 
     if mounted_folder:
+        logger.info("UCloud mounted folder detected.")
         for root, dirs, files in os.walk(source_directory):
             # Don't look in the 'UPLOADS' or 'COMPLETED' directories (used for user uploaded files and already completed)
             if 'UPLOADS' in dirs:
@@ -126,8 +125,9 @@ def get_initialization_data(request):
 
     scan_info['file_list'] = file_list
 
-    # get the list of annotated whisper models
+    # get the available memory
     scan_info['available_memory'] = calculate_available_memory()
+    logger.info(f"Available memory: {scan_info['available_memory']}")
 
     return JsonResponse(scan_info)
 
@@ -135,16 +135,15 @@ class RemoveLinkView(APIView):
 
     def post(self, request, *args, **kwargs):
         path = request.data.get('path')
-        #print(path)
         if path:
             try:
                 if os.path.islink(path):
                     os.unlink(path)
-                    print(f"Deleted symlink: {path}")
+                    logger.info(f"Deleted symlink: {path}")
                 else:
-                    print(f"Path is not a symlink: {path}")
+                    logger.info(f"Path is not a symlink: {path}")
             except FileNotFoundError:
-                print(f"Symlink not found: {path}")
+                logger.warning(f"Symlink not found: {path}")
             return JsonResponse({'status': 'success'}, status=200)
         return Response({'error': 'No path provided'}, status=400)
 

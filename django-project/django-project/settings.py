@@ -26,6 +26,8 @@ ALLOWED_HOSTS = ['*']
 
 SECRET_KEY = os.environ.get('SECRET_KEY')
 DEBUG = os.environ.get('DEBUG') == 'True'
+DJANGO_LOG_HANDLER = os.environ.get('DJANGO_LOG_HANDLER', 'console')
+DJANGO_LOG_FILE = os.environ.get('DJANGO_LOG_FILE', '/var/log/django/app.log')
 MEMORY_IN_GIGS = os.environ.get('MEMORY_IN_GIGS', '16')
 
 # Application definition
@@ -160,3 +162,46 @@ CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 
 # use the header to determine if the request is through HTTPS
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+        "file": {
+            "level": "INFO",
+            "class": "logging.handlers.RotatingFileHandler",
+            "formatter": "verbose",
+            # using environment variable for the log file path, with a default.
+            "filename": DJANGO_LOG_FILE,
+            "maxBytes": 1024 * 1024 * 20,  # 20 MB
+            "backupCount": 5,
+        },
+    },
+    "loggers": {
+        "root": {
+            "handlers": [DJANGO_LOG_HANDLER],
+            "level": "INFO",
+        },
+        "django": {
+            "handlers": [DJANGO_LOG_HANDLER],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "django.server": {
+            "handlers": [DJANGO_LOG_HANDLER],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
