@@ -7,7 +7,7 @@ The following figure shows a sequence diagram of the interaction.
 
 ### Setting up the environment for development
 
-To run the development React server you need to install node and npm
+To run the development React server you need to install node (v24) and npm
 
 ``` bash
 sudo apt install node npm python3-django
