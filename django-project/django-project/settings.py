@@ -168,7 +168,6 @@ LOGGING = {
     "disable_existing_loggers": False,
     "formatters": {
         "verbose": {
-            # Example: INFO 2023-10-27 10:30:00 consumers Control message received: start_recording
             "format": "{levelname} {asctime} {module} {message}",
             "style": "{",
         },
