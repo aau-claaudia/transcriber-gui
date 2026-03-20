@@ -48,6 +48,8 @@ class FileUploadView(APIView):
                 return Response(serializer.errors, status=400)
         # Get the model, language and shutdown flag from the request
         model = request.data.get('model')
+        cleaned_model_name = clean_model_name(model)
+
         language = request.data.get('language')
         transcribe_and_shutdown = request.data.get('transcribe_and_shutdown')
 
@@ -57,13 +59,13 @@ class FileUploadView(APIView):
             # Chain the transcription task with the shutdown task.
             # The shutdown_server_task will only execute after transcription_task succeeds.
             # Note: The result of the chain is the result of the *last* task in the chain.
-            task_chain = chain(transcription_task.s(model, language), shutdown_server_task.s(master_pid))
+            task_chain = chain(transcription_task.s(cleaned_model_name, language), shutdown_server_task.s(master_pid))
             # Start the chained Celery task
             task = task_chain.apply_async()
             return JsonResponse({'task_id': task.parent.id})
         else:
             # Start only the transcription task
-            task = transcription_task.delay(model, language)
+            task = transcription_task.delay(cleaned_model_name, language)
             return JsonResponse({'task_id': task.id})
 
 
@@ -248,3 +250,15 @@ def has_subdirectories(directory_path):
         if entry.is_dir():
             return True
     return False
+
+def clean_model_name(model_name):
+    # Clean parakeet model name
+    if "parakeet" in model_name:
+        return "parakeet"
+
+    # Handle prefix removal from whisper model names
+    prefix_to_remove = "whisper/"
+    if model_name.startswith(prefix_to_remove):
+        return model_name[len(prefix_to_remove):]
+
+    return model_name

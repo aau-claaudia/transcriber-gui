@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Settings = ({onUpdateModel, currentModelSize, availableMemory, whisperModels, onUpdateLanguage, currentLanguage, onUpdateTranscribeAndShutdown, currentTranscribeAndShutdown}) => {
+const Settings = ({onUpdateModel, currentModelSize, availableMemory, transcriptionModels, onUpdateLanguage, currentLanguage, onUpdateTranscribeAndShutdown, currentTranscribeAndShutdown}) => {
     // Function to handle model change
     const handleModelChange = (event) => {
         onUpdateModel(event.target.value);
@@ -43,12 +43,12 @@ const Settings = ({onUpdateModel, currentModelSize, availableMemory, whisperMode
                 <h3>Select model</h3>
                 <div className="select-box">
                     <select defaultValue={currentModelSize} onChange={handleModelChange}>
-                        {Object.entries(whisperModels).map(([modelName, memoryReq]) => {
+                        {Object.entries(transcriptionModels).map(([modelName, memoryReq]) => {
                             return <option key={modelName} value={modelName}>{modelName}</option>;
                         })}
                     </select>
                 </div>
-                {whisperModels[currentModelSize] > availableMemory && (
+                {transcriptionModels[currentModelSize] > availableMemory && (
                     <div className="memory-warning">
                         Warning: It is recommended to run transcriber on a machine type with at least 16 cores / 64 GB of RAM. Using this model on a small machine may result in slow transcription and/or running out of memory.
                     </div>
@@ -60,7 +60,11 @@ const Settings = ({onUpdateModel, currentModelSize, availableMemory, whisperMode
             <div>
                 <h3>Select language</h3>
                 <div className="select-box">
-                    <select defaultValue={currentLanguage} onChange={handleLangaugeChange}>
+                    <select
+                        value={currentModelSize === "nvidia/parakeet-tdt-0.6b-v3" ? "auto" : currentLanguage}
+                        disabled={currentModelSize === "nvidia/parakeet-tdt-0.6b-v3"}
+                        onChange={handleLangaugeChange}
+                    >
                         <option value="auto">Automatic</option>
                         <option value="af">Afrikaans</option>
                         <option value="sq">Albanian</option>
