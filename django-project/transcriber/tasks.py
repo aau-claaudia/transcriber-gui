@@ -22,13 +22,13 @@ def transcription_task(self, model_size, language):
         # Prepare the command based on the language
         if language == 'auto':
             command = [
-                'python3.13', 'transcriber/aau-whisper/app.py', '--job_name', 'files',
+                'python', 'transcriber/aau-whisper/app.py', '--job_name', 'files',
                 '-o', output_dir_path, '-m', model_size, '--input_dir', directory_path,
                 '--merge_speakers', '--threads', '4', '--transcriber_gui'
             ]
         else:
             command = [
-                'python3.13', 'transcriber/aau-whisper/app.py', '--job_name', 'files',
+                'python', 'transcriber/aau-whisper/app.py', '--job_name', 'files',
                 '-o', output_dir_path, '-m', model_size, '--language', language,
                 '--input_dir', directory_path, '--merge_speakers', '--threads', '4',
                 '--transcriber_gui'
