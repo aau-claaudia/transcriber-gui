@@ -529,9 +529,11 @@ function App() {
         accept: {
             "audio/mpeg": [".mp3"],
             "audio/wav": [".wav"],
+            "audio/x-ms-wma": [".wma"],
             "audio/x-m4a": [".m4a"],
             "video/mp4": [".mp4"],
-            "video/mpeg": [".mpeg", ".mpg"]
+            "video/mpeg": [".mpeg", ".mpg"],
+            "video/x-matroska": [".mkv"]
         }
     });
 
