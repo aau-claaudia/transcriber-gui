@@ -100,7 +100,7 @@ def get_initialization_data(request):
     os.makedirs(target_directory, exist_ok=True)
 
     # Define the allowed file extensions
-    allowed_extensions = {'.mp3', '.wav', '.m4a', '.mp4', '.mpeg', '.mpg'}
+    allowed_extensions = {'.mp3', '.wav', '.m4a', '.mp4', '.mpeg', '.mpg', '.wma', '.mkv'}
 
     if mounted_folder:
         logger.info("UCloud mounted folder detected.")
