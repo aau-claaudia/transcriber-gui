@@ -3,7 +3,7 @@ import {useDropzone} from 'react-dropzone';
 import axios from 'axios';
 import Settings from "./Settings.jsx";
 import TranscriptionStatus from "./TranscriptionStatus.jsx";
-import Results from "./Results.jsx";
+import EditPage from "./EditPage.jsx";
 import transcriberImage from "./logo-transcriber.png";
 import UcloudFiles from "./UcloudFiles.jsx";
 
@@ -95,6 +95,8 @@ function App() {
     const [language, setLanguage] = useState(getInitialString("language", "auto"))
     const [errorState, setErrorState] = useState(false);
     const [ucloudFolderMounted, setUcloudFolderMounted] = useState(getInitialBooleanState("ucloudFolderMounted", false));
+    const [currentPage, setCurrentPage] = useState('dashboard');
+    const [selectedTranscriptionKey, setSelectedTranscriptionKey] = useState(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -319,6 +321,37 @@ function App() {
     // Calculate the maximum number of files in any group
     const maxFilesInGroup = Math.max(...Object.values(groupedFiles).map(group => group.length), 0);
 
+    // Group results by original file name for dashboard listing
+    const groupedTranscriptions = results.reduce((acc, result) => {
+        const fileName = result.file_name;
+        if (fileName === 'transcribe.log' || fileName === 'transcriber_output.txt' || fileName === 'files.zip') {
+            return acc;
+        }
+        let baseName = fileName.split('.')[0];
+        if (baseName.endsWith('_merged')) {
+            baseName = baseName.slice(0, -7);
+        }
+        if (!acc[baseName]) {
+            acc[baseName] = {
+                name: baseName,
+                date: result.created_at || Date.now() / 1000,
+                files: [],
+                mergedFiles: []
+            };
+        }
+        if (result.created_at && result.created_at > acc[baseName].date) {
+            acc[baseName].date = result.created_at;
+        }
+        if (fileName.split('.')[0].endsWith('_merged')) {
+            acc[baseName].mergedFiles.push(result);
+        } else {
+            acc[baseName].files.push(result);
+        }
+        return acc;
+    }, {});
+
+    const transcriptionRows = Object.values(groupedTranscriptions);
+
     // Upload files and start a transcription on the server
     const onTranscribe = async (e) => {
         e.preventDefault();
@@ -539,174 +572,237 @@ function App() {
 
     return (
         <div className="App">
-            <div className="title-container">
-                <img src={transcriberImage} alt="Transcriber" className="centered-image"/>
+            {/* Topbar */}
+            <div className="topbar">
+                <div className="logo-section" onClick={() => setCurrentPage('dashboard')} style={{cursor: 'pointer'}}>
+                    <img src={transcriberImage} alt="Transcriber" className="centered-image"/>
+                    <h1>Transcriber</h1>
+                </div>
+                <div className="topbar-actions">
+                    <button
+                        className="btn btn-primary"
+                        onClick={() => setCurrentPage(currentPage === 'upload' ? 'dashboard' : 'upload')}
+                    >
+                        {currentPage === 'upload' ? '← Back to Dashboard' : '+ New Transcription'}
+                    </button>
+                    <button
+                        className="btn btn-secondary"
+                        onClick={() => setShowSettings(true)}
+                    >
+                        ⚙️ Settings
+                    </button>
+                </div>
             </div>
-            {
-                (!transcribing && results.length === 0) && (
-                    <div>
-                        <p className='helpText'>
-                            This application enables you to transcribe audio and video files. When files are dropped into
-                            the area below the <b>Selected files</b> list shows which files are selected for transcription.
-                            <br/> Choose <b>Show settings</b> if you need to modify the transcription model and/or language
-                            (default <b>large-v3</b> and <b>Automatic</b> respectively).
-                        </p>
-                        <p className='helpText'>
-                            When you are happy with the selection press the <b>Start transcription</b> button to start the
-                            transcription of the selected files.
-                        </p>
-                    </div>
-                )
-            }
-            {(files.length > 0 || scannedAndLinkedFiles.length > 0) > 0 && (
-                <h2>Selected files</h2>
-            )}
-            {
-                files.length > 0 && files.map((file, index) => (
-                    <ul key={index}>
-                        <li key={file.name + index}> {file.name} &nbsp;
-                            <button type='button' onClick={() => removeFile(file.name)}>Remove</button>
-                        </li>
-                    </ul>
-                ))
-            }
-            {
-                scannedAndLinkedFiles.length > 0 && scannedAndLinkedFiles.map((file, index) => (
-                    <ul key={index}>
-                        <li key={file.name + index}> {file.name} &nbsp;
-                            <button type='button' onClick={() => removeUCloudLinkedFile(file.target_path_sym_link)}>Remove
+
+            {/* Main Content Area */}
+            {currentPage === 'dashboard' && (
+                <div>
+                    <h2>Transcribed Files</h2>
+                    {transcriptionRows.length === 0 ? (
+                        <div className="empty-state">
+                            <div className="empty-state-icon">🎙️</div>
+                            <h3>No Transcriptions Found</h3>
+                            <p>Get started by uploading audio or video files for transcription.</p>
+                            <button
+                                className="btn btn-primary"
+                                onClick={() => setCurrentPage('upload')}
+                                style={{marginTop: '1rem'}}
+                            >
+                                Create First Transcription
                             </button>
-                            <span className="ucloud-file">UCloud file</span>
-                        </li>
-                    </ul>
-                ))
-            }
-            {rejected.length > 0 && (
-                <h2>Rejected files</h2>
+                        </div>
+                    ) : (
+                        <div className="dashboard-list">
+                            {transcriptionRows.map((row, index) => {
+                                const isVideo = row.name.endsWith('.mp4') || row.name.endsWith('.mkv') || row.name.endsWith('.mpeg') || row.name.endsWith('.mpg');
+                                return (
+                                    <button
+                                        key={index}
+                                        className="row-card"
+                                        onClick={() => {
+                                            setSelectedTranscriptionKey(row.name);
+                                            setCurrentPage('edit');
+                                        }}
+                                    >
+                                        <div className="row-info">
+                                            <div className="row-icon-wrapper">
+                                                {isVideo ? '🎥' : '🎵'}
+                                            </div>
+                                            <div className="row-details">
+                                                <span className="row-title">{row.name}</span>
+                                                <span className="row-date">
+                                                    Transcribed: {new Date(row.date * 1000).toLocaleString(undefined, {
+                                                    year: 'numeric',
+                                                    month: 'short',
+                                                    day: 'numeric',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit'
+                                                })}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="row-actions">
+                                            <span className="btn btn-secondary btn-sm" style={{padding: '0.4rem 0.8rem'}}>
+                                                ✏️ Edit & View
+                                            </span>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
             )}
-            {
-                Object.keys(groupedErrors).length > 0 && Object.keys(groupedErrors).map((errorMessage, index) => (
-                    <ul key={index}>
-                        <li key={errorMessage + index}>
-                            <div>
-                                <p className="fileTypeError">{errorMessage}</p>
-                                <ul>
-                                    {groupedErrors[errorMessage].map((fileName, fileIndex) => (
-                                        <li key={fileName + fileIndex}>{fileName}</li>
-                                    ))}
-                                </ul>
+
+            {currentPage === 'upload' && (
+                <div className="card-panel" style={{animation: 'fadeIn 0.4s ease-out'}}>
+                    <h2>New Transcription</h2>
+                    <p style={{marginBottom: '1.5rem'}}>
+                        Upload audio or video files from your computer or select files from your UCloud folder to begin transcribing.
+                    </p>
+
+                    {/* Selected files display */}
+                    {(files.length > 0 || scannedAndLinkedFiles.length > 0) && (
+                        <div style={{marginBottom: '1.5rem'}}>
+                            <h3>Selected Files ({files.length + scannedAndLinkedFiles.length})</h3>
+                            <div className="file-list-group">
+                                {files.map((file, index) => (
+                                    <div className="file-item" key={'local-' + index}>
+                                        <span className="file-name">🎵 {file.name}</span>
+                                        <div className="file-item-actions">
+                                            <button className="remove-btn" type="button" onClick={() => removeFile(file.name)}>Remove</button>
+                                        </div>
+                                    </div>
+                                ))}
+                                {scannedAndLinkedFiles.map((file, index) => (
+                                    <div className="file-item" key={'ucloud-' + index}>
+                                        <span className="file-name">☁️ {file.name}</span>
+                                        <div className="file-item-actions">
+                                            <button className="remove-btn" type="button" onClick={() => removeUCloudLinkedFile(file.target_path_sym_link)}>Remove</button>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                        </li>
-                    </ul>
-                ))
-            }
-
-            <button
-                type='submit'
-                onClick={(e) => onTranscribe(e)}
-                style={{width: '200px'}}
-                className='transcribe-button'
-                disabled={buttonDisabled} // Bind the button's disabled attribute to the state
-            >
-                {transcribing ? 'In progress' : 'Start transcription'}
-            </button>
-
-            <button
-                type='submit'
-                onClick={(e) => onStopTranscription(e)}
-                style={{width: '200px'}}
-                className='transcribe-stop-button'
-                disabled={!transcribing} // Stop button is enabled when we are transcribing
-            >
-                Stop transcription
-            </button>
-
-            <button
-                type='submit'
-                onClick={showOrHideSettings}
-                style={{width: '200px'}}
-                className='transcribe-button'
-            >
-                {showSettings ? 'Hide settings' : 'Show settings'}
-            </button>
-
-            {
-                showSettings && (
-                    <Settings
-                        onUpdateModel={onUpdateModel}
-                        currentModelSize={modelSize}
-                        availableMemory={availableMemory}
-                        transcriptionModels={TRANSCRIPTION_MODELS}
-                        onUpdateLanguage={onUpdateLanguage}
-                        currentLanguage={language}
-                        onUpdateTranscribeAndShutdown={onUpdateTranscribeAndShutdown}
-                        currentTranscribeAndShutdown={transcribeAndShutdown}
-                    />
-                )
-            }
-
-            <h2>Upload files from the computer</h2>
-
-            <div {...getRootProps({className: 'dropzone'})}>
-                <input {...getInputProps()} />
-                {
-                    isDragActive ?
-                        <div>
-                            <p>Drop the files here ...</p>
                         </div>
-                        :
-                        <div>
-                            <p>Drag 'n' drop file(s) here, or click to browse from your computer.</p>
+                    )}
+
+                    {rejected.length > 0 && (
+                        <div style={{marginBottom: '1.5rem'}}>
+                            <h3 style={{color: 'var(--accent-rose)'}}>Rejected Files</h3>
+                            <div className="file-list-group" style={{borderColor: 'var(--accent-rose)'}}>
+                                {Object.keys(groupedErrors).map((errorMessage, index) => (
+                                    <div key={index} style={{padding: '0.5rem'}}>
+                                        <p style={{color: 'var(--accent-rose)', fontWeight: 'bold', fontSize: '0.85rem'}}>{errorMessage}</p>
+                                        {groupedErrors[errorMessage].map((fileName, fileIndex) => (
+                                            <div key={fileName + fileIndex} style={{fontSize: '0.8rem', paddingLeft: '0.5rem', color: 'var(--text-secondary)'}}>
+                                                • {fileName}
+                                            </div>
+                                        ))}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                }
-            </div>
+                    )}
 
-            {
-                ucloudFolderMounted && (
-                    <UcloudFiles
-                        onAddUcloudFiles={onAddUcloudFiles}
-                        scannedFiles={scannedFiles}
-                        onScan={onScan}
-                        scanning={scanning}
-                    />
-                )
-            }
+                    {/* Action buttons */}
+                    <div style={{display: 'flex', gap: '1rem', margin: '1.5rem 0'}}>
+                        <button
+                            type="button"
+                            onClick={(e) => onTranscribe(e)}
+                            className="btn btn-primary"
+                            disabled={buttonDisabled}
+                            style={{minWidth: '160px'}}
+                        >
+                            {transcribing ? 'In Progress...' : '⚡ Start Transcription'}
+                        </button>
 
-            {
-                (uploading || transcribing) && (
-                    <h2>Status</h2>
-                )
-            }
-            {
-                uploading && (
-                    <p>Uploading {progress} %</p>
-                )
-            }
-            {
-                errorState && (
-                    <p>{statusText}</p>
-                )
-            }
-            {
-                transcribing && (
-                    <TranscriptionStatus
-                        statusText={statusText}
-                        activeTask={activeTask}
-                        percentageDone={percentageDone}
-                        transcribeAndShutdown={transcribeAndShutdown}
-                        serverStopped={serverStopped}
-                    />
-                )
-            }
+                        <button
+                            type="button"
+                            onClick={(e) => onStopTranscription(e)}
+                            className="btn btn-danger"
+                            disabled={!transcribing}
+                            style={{minWidth: '160px'}}
+                        >
+                            🛑 Stop Transcription
+                        </button>
+                    </div>
 
-            {results.length > 0 && (
-                <Results
-                    zipFile={zipFile}
-                    maxFilesInGroup={maxFilesInGroup}
-                    groupedFiles={groupedFiles}
-                    groupedFilesMergedFormat={groupedFilesMergedFormat}
+                    {/* Drag and Drop Zone */}
+                    {!transcribing && (
+                        <div style={{marginBottom: '2rem'}}>
+                            <h3>Upload from Computer</h3>
+                            <div {...getRootProps({className: 'dropzone'})}>
+                                <input {...getInputProps()} />
+                                <div className="dropzone-icon">📥</div>
+                                {isDragActive ? (
+                                    <p>Drop the files here ...</p>
+                                ) : (
+                                    <p>Drag & drop audio/video files here, or click to browse</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* UCloud Files section */}
+                    {ucloudFolderMounted && !transcribing && (
+                        <UcloudFiles
+                            onAddUcloudFiles={onAddUcloudFiles}
+                            scannedFiles={scannedFiles}
+                            onScan={onScan}
+                            scanning={scanning}
+                        />
+                    )}
+
+                    {/* Status panel */}
+                    {(uploading || transcribing || errorState) && (
+                        <div className="status-panel">
+                            <h3>Status</h3>
+                            {uploading && <p>Uploading files: {progress}%</p>}
+                            {errorState && <p style={{color: 'var(--accent-rose)'}}>{statusText}</p>}
+                            {transcribing && (
+                                <TranscriptionStatus
+                                    statusText={statusText}
+                                    activeTask={activeTask}
+                                    percentageDone={percentageDone}
+                                    transcribeAndShutdown={transcribeAndShutdown}
+                                    serverStopped={serverStopped}
+                                />
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {currentPage === 'edit' && selectedTranscriptionKey && (
+                <EditPage
+                    transcriptionKey={selectedTranscriptionKey}
+                    transcriptionData={groupedTranscriptions[selectedTranscriptionKey]}
+                    onBack={() => setCurrentPage('dashboard')}
                     logFiles={logFiles}
+                    zipFile={zipFile}
                 />
+            )}
+
+            {/* Settings Modal */}
+            {showSettings && (
+                <div className="modal-overlay" onClick={() => setShowSettings(false)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <button className="modal-close-btn" onClick={() => setShowSettings(false)}>×</button>
+                        <Settings
+                            onUpdateModel={onUpdateModel}
+                            currentModelSize={modelSize}
+                            availableMemory={availableMemory}
+                            transcriptionModels={TRANSCRIPTION_MODELS}
+                            onUpdateLanguage={onUpdateLanguage}
+                            currentLanguage={language}
+                            onUpdateTranscribeAndShutdown={onUpdateTranscribeAndShutdown}
+                            currentTranscribeAndShutdown={transcribeAndShutdown}
+                        />
+                        <div style={{display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem'}}>
+                            <button className="btn btn-primary" onClick={() => setShowSettings(false)}>Close</button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

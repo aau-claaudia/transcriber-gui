@@ -192,9 +192,16 @@ def prepare_results(request):
         # List the files in the output directory and construct the URLs
         for filename in os.listdir(output_dir_path):
             file_url = request.build_absolute_uri(os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS', filename))
+            file_path = os.path.join(output_dir_path, filename)
+            try:
+                created_at = os.path.getmtime(file_path)
+            except OSError:
+                logger.error("Could not read file create time.")
+                created_at = 0.0
             responses.append({
                 'file_name': filename,
-                'file_url': file_url
+                'file_url': file_url,
+                'created_at': created_at
             })
         responses.sort(key=lambda x: x['file_name'])
     return responses

@@ -17,11 +17,11 @@ const Settings = ({onUpdateModel, currentModelSize, availableMemory, transcripti
     }
 
     return (
-        <div style={{marginBottom: '5%'}}>
-            <h2>Settings</h2>
+        <div>
+            <h2 style={{ marginBottom: '1.5rem', fontFamily: 'Outfit' }}>Settings</h2>
 
             {/* Section for setting transcribe and shutdown mode */}
-            <div>
+            <div className="setting-group">
                 <h3>Transcribe and stop</h3>
                 <div className="toggle-container">
                     <label className="toggle-switch" htmlFor="shutdown-toggle">
@@ -36,28 +36,30 @@ const Settings = ({onUpdateModel, currentModelSize, availableMemory, transcripti
                     <span className="toggle-label">Stop UCloud job after transcription completes</span>
                 </div>
             </div>
-            <hr/>
+
+            <div style={{ borderBottom: '1px solid var(--border-color)', margin: '1.5rem 0' }}></div>
 
             {/* Section for setting a model */}
-            <div>
+            <div className="setting-group">
                 <h3>Select model</h3>
                 <div className="select-box">
                     <select defaultValue={currentModelSize} onChange={handleModelChange}>
                         {Object.entries(transcriptionModels).map(([modelName, memoryReq]) => {
-                            return <option key={modelName} value={modelName}>{modelName}</option>;
+                            return <option key={modelName} value={modelName}>{modelName} ({memoryReq} GB req.)</option>;
                         })}
                     </select>
                 </div>
                 {transcriptionModels[currentModelSize] > availableMemory && (
                     <div className="memory-warning">
-                        Warning: It is recommended to run transcriber on a machine type with at least 16 cores / 64 GB of RAM. Using this model on a small machine may result in slow transcription and/or running out of memory.
+                        ⚠️ Warning: It is recommended to run transcriber on a machine type with at least 16 cores / 64 GB of RAM. Using this model on a small machine may result in slow transcription and/or running out of memory.
                     </div>
                 )}
             </div>
-            <hr/>
+
+            <div style={{ borderBottom: '1px solid var(--border-color)', margin: '1.5rem 0' }}></div>
 
             {/* Section for setting a language */}
-            <div>
+            <div className="setting-group">
                 <h3>Select language</h3>
                 <div className="select-box">
                     <select
@@ -168,7 +170,6 @@ const Settings = ({onUpdateModel, currentModelSize, availableMemory, transcripti
                     </select>
                 </div>
             </div>
-            <hr/>
         </div>
     );
 };
