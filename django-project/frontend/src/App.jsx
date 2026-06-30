@@ -1,5 +1,5 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {useDropzone} from 'react-dropzone';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
 import Settings from "./Settings.jsx";
 import TranscriptionStatus from "./TranscriptionStatus.jsx";
@@ -76,20 +76,20 @@ function App() {
     const [activeTask, setActiveTask] = useState(getInitialArrayState("activeTask"));
     const [rejected, setRejected] = useState([]);
     const [results, setResults] = useState(getInitialArrayState("results"));
-    const [transcribing, setTranscribing] = useState(getInitialBooleanState("transcribing",false));
+    const [transcribing, setTranscribing] = useState(getInitialBooleanState("transcribing", false));
     const [buttonDisabled, setButtonDisabled] = useState(getInitialBooleanState("buttonDisabled", true));
     const [progress, setProgress] = useState(0)
     const [transcriptionId, setTranscriptionId] = useState(getInitialTranscriptionId);
     const transcriptionIdRef = useRef(transcriptionId);
-    const [uploading, setUploading] = useState(getInitialBooleanState("uploading",false));
+    const [uploading, setUploading] = useState(getInitialBooleanState("uploading", false));
     const [statusText, setStatusText] = useState(getInitialTranscriptionStatus);
     const [dataSize, setDataSize] = useState(getInitialInteger("dataSize"));
     const [percentageDone, setPercentageDone] = useState(getInitialInteger("percentageDone"));
     const [transcriptionStartTime, setTranscriptionStartTime] = useState(getInitialTranscriptionStartTime);
     const [scanning, setScanning] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
-    const [transcribeAndShutdown, setTranscribeAndShutdown] = useState(getInitialBooleanState("transcribeAndShutdown",false));
-    const [serverStopped, setServerStopped] = useState(getInitialBooleanState("serverStopped",false));
+    const [transcribeAndShutdown, setTranscribeAndShutdown] = useState(getInitialBooleanState("transcribeAndShutdown", false));
+    const [serverStopped, setServerStopped] = useState(getInitialBooleanState("serverStopped", false));
     const [modelSize, setModelSize] = useState("large-v3");
     const [availableMemory, setAvailableMemory] = useState(16.0);
     const [language, setLanguage] = useState(getInitialString("language", "auto"))
@@ -284,29 +284,59 @@ function App() {
         transcriptionId ? setTimeout(() => pollTranscriptionStatus(transcriptionIdRef.current), 5000) : console.log("No active transcription task to poll.")
     }, [transcriptionId, pollTranscriptionStatus])
 
-    // Separate the log files, grouped files, and the zip file
-    const { logFiles, groupedFiles, groupedFilesMergedFormat, zipFile } = results.reduce((acc, result) => {
+    // Group results by transcription directory (each folder is one run/input file)
+    const groupedTranscriptions = results.reduce((acc, result) => {
+        const dirName = result.dir_name || (() => {
+            const parts = result.file_url?.split('/media/');
+            return parts && parts.length > 1 ? parts[1].split('/')[0] : '';
+        })();
+
+        if (!dirName) {
+            return acc;
+        }
+
+        if (!acc[dirName]) {
+            const parts = dirName.split('_');
+            let displayName = dirName;
+            let model = '';
+            let lang = '';
+            if (parts.length >= 3) {
+                lang = parts[parts.length - 1];
+                model = parts[parts.length - 2];
+                displayName = parts.slice(0, parts.length - 2).join('_');
+            }
+
+            acc[dirName] = {
+                name: dirName,
+                displayName,
+                model,
+                language: lang,
+                date: result.created_at || Date.now() / 1000,
+                files: [],
+                mergedFiles: [],
+                logFiles: [],
+                zipFile: null,
+                inputFileUrl: result.input_file_url
+            };
+        }
+
+        if (result.created_at && result.created_at > acc[dirName].date) {
+            acc[dirName].date = result.created_at;
+        }
+
         const fileName = result.file_name;
         if (fileName === 'transcribe.log' || fileName === 'transcriber_output.txt') {
-            acc.logFiles.push(result);
+            acc[dirName].logFiles.push(result);
         } else if (fileName === 'files.zip') {
-            acc.zipFile = result;
+            acc[dirName].zipFile = result;
+        } else if (fileName.split('.')[0].endsWith('_merged')) {
+            acc[dirName].mergedFiles.push(result);
         } else {
-            const key = fileName.split('.')[0];
-            if (key.endsWith('_merged')) {
-                if (!acc.groupedFilesMergedFormat[key]) {
-                    acc.groupedFilesMergedFormat[key] = [];
-                }
-                acc.groupedFilesMergedFormat[key].push(result);
-            } else {
-                if (!acc.groupedFiles[key]) {
-                    acc.groupedFiles[key] = [];
-                }
-                acc.groupedFiles[key].push(result);
-            }
+            acc[dirName].files.push(result);
         }
+
         return acc;
-    }, { logFiles: [], groupedFiles: {}, groupedFilesMergedFormat: {},zipFile: null });
+    }, {});
 
     // transform the rejected file data to group the files by the error type
     const groupedErrors = rejected.reduce((acc, file) => {
@@ -316,38 +346,6 @@ function App() {
             }
             acc[error.message].push(file.file.name);
         });
-        return acc;
-    }, {});
-
-    // Calculate the maximum number of files in any group
-    const maxFilesInGroup = Math.max(...Object.values(groupedFiles).map(group => group.length), 0);
-
-    // Group results by original file name for dashboard listing
-    const groupedTranscriptions = results.reduce((acc, result) => {
-        const fileName = result.file_name;
-        if (fileName === 'transcribe.log' || fileName === 'transcriber_output.txt' || fileName === 'files.zip') {
-            return acc;
-        }
-        let baseName = fileName.split('.')[0];
-        if (baseName.endsWith('_merged')) {
-            baseName = baseName.slice(0, -7);
-        }
-        if (!acc[baseName]) {
-            acc[baseName] = {
-                name: baseName,
-                date: result.created_at || Date.now() / 1000,
-                files: [],
-                mergedFiles: []
-            };
-        }
-        if (result.created_at && result.created_at > acc[baseName].date) {
-            acc[baseName].date = result.created_at;
-        }
-        if (fileName.split('.')[0].endsWith('_merged')) {
-            acc[baseName].mergedFiles.push(result);
-        } else {
-            acc[baseName].files.push(result);
-        }
         return acc;
     }, {});
 
@@ -401,7 +399,7 @@ function App() {
             // update the list of files that is currently worked on
             let activeTranscriptionList = [];
             files.forEach((file) => {
-                addFileDataToList(file,activeTranscriptionList, false)
+                addFileDataToList(file, activeTranscriptionList, false)
             });
             scannedAndLinkedFiles.forEach((file) => {
                 addFileDataToList(file, activeTranscriptionList, true)
@@ -575,8 +573,8 @@ function App() {
         <div className="App">
             {/* Topbar */}
             <div className="topbar">
-                <div className="logo-section" onClick={() => setCurrentPage('dashboard')} style={{cursor: 'pointer'}}>
-                    <img src={transcriberImage} alt="Transcriber" className="centered-image"/>
+                <div className="logo-section" onClick={() => setCurrentPage('dashboard')} style={{ cursor: 'pointer' }}>
+                    <img src={transcriberImage} alt="Transcriber" className="centered-image" />
                     <h1>Transcriber</h1>
                 </div>
                 <div className="topbar-actions">
@@ -607,7 +605,7 @@ function App() {
                             <button
                                 className="btn btn-primary"
                                 onClick={() => setCurrentPage('upload')}
-                                style={{marginTop: '1rem'}}
+                                style={{ marginTop: '1rem' }}
                             >
                                 Create First Transcription
                             </button>
@@ -615,7 +613,8 @@ function App() {
                     ) : (
                         <div className="dashboard-list">
                             {transcriptionRows.map((row, index) => {
-                                const isVideo = row.name.endsWith('.mp4') || row.name.endsWith('.mkv') || row.name.endsWith('.mpeg') || row.name.endsWith('.mpg');
+                                const inputFileUrl = row.inputFileUrl || '';
+                                const isVideo = inputFileUrl.endsWith('.mp4') || inputFileUrl.endsWith('.mkv') || inputFileUrl.endsWith('.mpeg') || inputFileUrl.endsWith('.mpg');
                                 return (
                                     <button
                                         key={index}
@@ -630,8 +629,10 @@ function App() {
                                                 {isVideo ? '🎥' : '🎵'}
                                             </div>
                                             <div className="row-details">
-                                                <span className="row-title">{row.name}</span>
+                                                <span className="row-title">{row.displayName || row.name}</span>
                                                 <span className="row-date">
+                                                    {row.model && <span className="badge-model">{row.model}</span>}
+                                                    {row.language && `(${row.language}) • `}
                                                     Transcribed: {new Date(row.date * 1000).toLocaleString(undefined, {
                                                     year: 'numeric',
                                                     month: 'short',
@@ -643,7 +644,7 @@ function App() {
                                             </div>
                                         </div>
                                         <div className="row-actions">
-                                            <span className="btn btn-secondary btn-sm" style={{padding: '0.4rem 0.8rem'}}>
+                                            <span className="btn btn-secondary btn-sm" style={{ padding: '0.4rem 0.8rem' }}>
                                                 ✏️ Edit & View
                                             </span>
                                         </div>
@@ -656,15 +657,15 @@ function App() {
             )}
 
             {currentPage === 'upload' && (
-                <div className="card-panel" style={{animation: 'fadeIn 0.4s ease-out'}}>
+                <div className="card-panel" style={{ animation: 'fadeIn 0.4s ease-out' }}>
                     <h2>New Transcription</h2>
-                    <p style={{marginBottom: '1.5rem'}}>
+                    <p style={{ marginBottom: '1.5rem' }}>
                         Upload audio or video files from your computer or select files from your UCloud folder to begin transcribing.
                     </p>
 
                     {/* Selected files display */}
                     {(files.length > 0 || scannedAndLinkedFiles.length > 0) && (
-                        <div style={{marginBottom: '1.5rem'}}>
+                        <div style={{ marginBottom: '1.5rem' }}>
                             <h3>Selected Files ({files.length + scannedAndLinkedFiles.length})</h3>
                             <div className="file-list-group">
                                 {files.map((file, index) => (
@@ -688,14 +689,14 @@ function App() {
                     )}
 
                     {rejected.length > 0 && (
-                        <div style={{marginBottom: '1.5rem'}}>
-                            <h3 style={{color: 'var(--accent-rose)'}}>Rejected Files</h3>
-                            <div className="file-list-group" style={{borderColor: 'var(--accent-rose)'}}>
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <h3 style={{ color: 'var(--accent-rose)' }}>Rejected Files</h3>
+                            <div className="file-list-group" style={{ borderColor: 'var(--accent-rose)' }}>
                                 {Object.keys(groupedErrors).map((errorMessage, index) => (
-                                    <div key={index} style={{padding: '0.5rem'}}>
-                                        <p style={{color: 'var(--accent-rose)', fontWeight: 'bold', fontSize: '0.85rem'}}>{errorMessage}</p>
+                                    <div key={index} style={{ padding: '0.5rem' }}>
+                                        <p style={{ color: 'var(--accent-rose)', fontWeight: 'bold', fontSize: '0.85rem' }}>{errorMessage}</p>
                                         {groupedErrors[errorMessage].map((fileName, fileIndex) => (
-                                            <div key={fileName + fileIndex} style={{fontSize: '0.8rem', paddingLeft: '0.5rem', color: 'var(--text-secondary)'}}>
+                                            <div key={fileName + fileIndex} style={{ fontSize: '0.8rem', paddingLeft: '0.5rem', color: 'var(--text-secondary)' }}>
                                                 • {fileName}
                                             </div>
                                         ))}
@@ -706,13 +707,13 @@ function App() {
                     )}
 
                     {/* Action buttons */}
-                    <div style={{display: 'flex', gap: '1rem', margin: '1.5rem 0'}}>
+                    <div style={{ display: 'flex', gap: '1rem', margin: '1.5rem 0' }}>
                         <button
                             type="button"
                             onClick={(e) => onTranscribe(e)}
                             className="btn btn-primary"
                             disabled={buttonDisabled}
-                            style={{minWidth: '160px'}}
+                            style={{ minWidth: '160px' }}
                         >
                             {transcribing ? 'In Progress...' : '⚡ Start Transcription'}
                         </button>
@@ -722,7 +723,7 @@ function App() {
                             onClick={(e) => onStopTranscription(e)}
                             className="btn btn-danger"
                             disabled={!transcribing}
-                            style={{minWidth: '160px'}}
+                            style={{ minWidth: '160px' }}
                         >
                             🛑 Stop Transcription
                         </button>
@@ -730,9 +731,9 @@ function App() {
 
                     {/* Drag and Drop Zone */}
                     {!transcribing && (
-                        <div style={{marginBottom: '2rem'}}>
+                        <div style={{ marginBottom: '2rem' }}>
                             <h3>Upload from Computer</h3>
-                            <div {...getRootProps({className: 'dropzone'})}>
+                            <div {...getRootProps({ className: 'dropzone' })}>
                                 <input {...getInputProps()} />
                                 <div className="dropzone-icon">📥</div>
                                 {isDragActive ? (
@@ -759,7 +760,7 @@ function App() {
                         <div className="status-panel">
                             <h3>Status</h3>
                             {uploading && <p>Uploading files: {progress}%</p>}
-                            {errorState && <p style={{color: 'var(--accent-rose)'}}>{statusText}</p>}
+                            {errorState && <p style={{ color: 'var(--accent-rose)' }}>{statusText}</p>}
                             {transcribing && (
                                 <TranscriptionStatus
                                     statusText={statusText}
@@ -779,8 +780,6 @@ function App() {
                     transcriptionKey={selectedTranscriptionKey}
                     transcriptionData={groupedTranscriptions[selectedTranscriptionKey]}
                     onBack={() => setCurrentPage('dashboard')}
-                    logFiles={logFiles}
-                    zipFile={zipFile}
                 />
             )}
 
@@ -799,7 +798,7 @@ function App() {
                             onUpdateTranscribeAndShutdown={onUpdateTranscribeAndShutdown}
                             currentTranscribeAndShutdown={transcribeAndShutdown}
                         />
-                        <div style={{display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem'}}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
                             <button className="btn btn-primary" onClick={() => setShowSettings(false)}>Close</button>
                         </div>
                     </div>

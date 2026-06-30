@@ -238,7 +238,8 @@ def prepare_results(request):
                             'file_name': filename,
                             'file_url': file_url,
                             'created_at': created_at,
-                            'input_file_url': input_file_url
+                            'input_file_url': input_file_url,
+                            'dir_name': dir_name
                         })
 
     responses.sort(key=lambda x: x['file_name'])

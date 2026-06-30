@@ -83,11 +83,11 @@ def transcription_task(self, model_size, language):
                     dst_out = os.path.join(trans_dir, out_item)
                     shutil.move(src_out, dst_out)
 
-            # Copy transcription output log files
-            for log_name in ["transcriber_output.txt", "transcribe.log"]:
-                log_path = os.path.join(output_dir_path, log_name)
-                if os.path.exists(log_path):
-                    shutil.copy(log_path, os.path.join(trans_dir, log_name))
+            # Copy transcription output log files and zip archive
+            for file_to_copy in ["transcriber_output.txt", "transcribe.log", "files.zip"]:
+                src_path = os.path.join(output_dir_path, file_to_copy)
+                if os.path.exists(src_path):
+                    shutil.copy(src_path, os.path.join(trans_dir, file_to_copy))
 
     except subprocess.CalledProcessError as e:
         write_transcriber_output(e.stderr, e.stdout, transcriber_output_file, directory_path, model_size)

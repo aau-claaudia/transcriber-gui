@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 
-const EditPage = ({ transcriptionKey, transcriptionData, onBack, logFiles, zipFile }) => {
+const EditPage = ({ transcriptionKey, transcriptionData, onBack }) => {
     const [notes, setNotes] = useState([]);
     const [newNote, setNewNote] = useState('');
+    const { logFiles, zipFile } = transcriptionData || {};
 
     // Load notes from localStorage on mount/key change
     useEffect(() => {
@@ -138,12 +139,43 @@ const EditPage = ({ transcriptionKey, transcriptionData, onBack, logFiles, zipFi
 
                 {/* Log & Zip section in Edit Page for contextual convenience */}
                 {zipFile && (
-                    <div style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(255,255,255,0.01)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                    <div style={{
+                        marginTop: '2rem',
+                        padding: '1rem',
+                        background: 'rgba(255,255,255,0.01)',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border-color)'
+                    }}>
                         <h4 style={{ marginBottom: '0.5rem' }}>📦 Entire Output Archive</h4>
-                        <p style={{ fontSize: '0.85rem', marginBottom: '0.75rem' }}>Download a zip archive containing all format outputs for this transcription.</p>
+                        <p style={{ fontSize: '0.85rem', marginBottom: '0.75rem' }}>Download a zip archive containing all
+                            format outputs for this transcription.</p>
                         <a href={zipFile.file_url} className="btn btn-secondary" download>
                             Download Zip File
                         </a>
+                    </div>
+                )}
+                {logFiles && logFiles.length > 0 && (
+                    <div style={{
+                        marginTop: '2rem',
+                        padding: '1rem',
+                        background: 'rgba(255,255,255,0.01)',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border-color)'
+                    }}>
+                        <h4 style={{ marginBottom: '0.5rem' }}>Log Files</h4>
+                        <p style={{ fontSize: '0.85rem', marginBottom: '0.75rem' }}>Download log files from the
+                            transcription proces.</p>
+                        {logFiles.map((file, idx) => {
+                            return (
+                                <a
+                                    style={{ marginRight: '1rem' }}
+                                    key={idx}
+                                    href={file.file_url} className="btn btn-secondary" download>
+                                    {file.file_name}
+                                </a>
+                            );
+                        })
+                        }
                     </div>
                 )}
             </div>
