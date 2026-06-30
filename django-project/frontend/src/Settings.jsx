@@ -45,7 +45,7 @@ const Settings = ({onUpdateModel, currentModelSize, availableMemory, transcripti
                 <div className="select-box">
                     <select defaultValue={currentModelSize} onChange={handleModelChange}>
                         {Object.entries(transcriptionModels).map(([modelName, memoryReq]) => {
-                            return <option key={modelName} value={modelName}>{modelName} ({memoryReq} GB req.)</option>;
+                            return <option key={modelName} value={modelName}>{modelName}</option>;
                         })}
                     </select>
                 </div>
