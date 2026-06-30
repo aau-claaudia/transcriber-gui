@@ -45,8 +45,8 @@ export default defineConfig({
                 secure: false,
             },
             // Proxy media file requests to the Django/Daphne server.
-            // Match any URL that contains '/media/TRANSCRIPTIONS/'
-            '^.*(/media/TRANSCRIPTIONS/.*)$': {
+            // Match any URL that contains '/media/'
+            '^.*(/media/.*)$': {
                 target: 'http://localhost:8000',
                 //target: 'http://10.49.223.156:8000',
                 changeOrigin: true,

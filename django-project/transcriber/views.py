@@ -131,6 +131,10 @@ def get_initialization_data(request):
     scan_info['available_memory'] = calculate_available_memory()
     logger.info(f"Available memory: {scan_info['available_memory']}")
 
+    # Return transcription results along with the initialization data
+    scan_info['transcriptions'] = prepare_results(request)
+    scan_info['results'] = scan_info['transcriptions']
+
     return JsonResponse(scan_info)
 
 class RemoveLinkView(APIView):
@@ -187,23 +191,57 @@ def get_completed_transcriptions(request):
 
 def prepare_results(request):
     responses = []
-    output_dir_path: str = os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS/')
-    if os.path.isdir(output_dir_path):
-        # List the files in the output directory and construct the URLs
-        for filename in os.listdir(output_dir_path):
-            file_url = request.build_absolute_uri(os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS', filename))
-            file_path = os.path.join(output_dir_path, filename)
-            try:
-                created_at = os.path.getmtime(file_path)
-            except OSError:
-                logger.error("Could not read file create time.")
-                created_at = 0.0
-            responses.append({
-                'file_name': filename,
-                'file_url': file_url,
-                'created_at': created_at
-            })
-        responses.sort(key=lambda x: x['file_name'])
+
+    if os.path.isdir(settings.MEDIA_ROOT):
+        # avoid scanning folders in "old" transcriber-gui data structure
+        exclude_dirs = {'UPLOADS', 'COMPLETED', 'TRANSCRIPTIONS', 'TRANSCRIPTIONS_TEMP'}
+        for dir_name in os.listdir(settings.MEDIA_ROOT):
+            if dir_name in exclude_dirs or dir_name.startswith('.'):
+                continue
+            dir_path = os.path.join(settings.MEDIA_ROOT, dir_name)
+            if not os.path.isdir(dir_path):
+                continue
+
+            # Check if a TRANSCRIPTIONS folder exists within this directory
+            trans_dir = os.path.join(dir_path, 'TRANSCRIPTIONS')
+            if os.path.isdir(trans_dir):
+                # Read metadata.json if it exists
+                metadata_path = os.path.join(dir_path, 'data', 'metadata.json')
+                input_file_url = None
+                if os.path.exists(metadata_path):
+                    try:
+                        with open(metadata_path, 'r') as f:
+                            meta_data = json.load(f)
+                            raw_url = meta_data.get('input_file_url')
+                            if raw_url:
+                                input_file_url = request.build_absolute_uri(raw_url)
+                    except Exception as e:
+                        logger.error(f"Error reading metadata.json in {dir_name}: {e}")
+
+                # Fallback to scanning COMPLETED/ if metadata was missing/incomplete
+                if not input_file_url:
+                    completed_dir = os.path.join(dir_path, 'COMPLETED')
+                    if os.path.isdir(completed_dir):
+                        completed_files = [f for f in os.listdir(completed_dir) if os.path.isfile(os.path.join(completed_dir, f))]
+                        if completed_files:
+                            input_file_url = request.build_absolute_uri(f"{settings.MEDIA_URL}{dir_name}/COMPLETED/{completed_files[0]}")
+
+                for filename in os.listdir(trans_dir):
+                    file_path = os.path.join(trans_dir, filename)
+                    if os.path.isfile(file_path):
+                        try:
+                            created_at = os.path.getmtime(file_path)
+                        except OSError:
+                            created_at = 0.0
+                        file_url = request.build_absolute_uri(f"{settings.MEDIA_URL}{dir_name}/TRANSCRIPTIONS/{filename}")
+                        responses.append({
+                            'file_name': filename,
+                            'file_url': file_url,
+                            'created_at': created_at,
+                            'input_file_url': input_file_url
+                        })
+
+    responses.sort(key=lambda x: x['file_name'])
     return responses
 
 def stop_transcription_task(request, task_id):
@@ -215,8 +253,8 @@ def serve_file(request, path):
     # Determine the base directory based on the URL prefix
     if request.path.startswith('/work/'):
         base_dir = '/work'  # the files are saved here on UCloud
-    elif 'media/TRANSCRIPTIONS' in request.path:
-        base_dir = os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS/')
+    elif 'media/' in request.path:
+        base_dir = settings.MEDIA_ROOT
     else:
         raise Http404("File not found")
 

@@ -29,7 +29,7 @@ urlpatterns = [
     path('get-initialization-data/', get_initialization_data, name='get_initialization_data'),
     path('link-files/', LinkFilesView.as_view(), name='link_files'),
     path('remove-link/', RemoveLinkView.as_view(), name='remove_link'),
-    re_path(r'^.*media/TRANSCRIPTIONS/(?P<path>.*)$', serve_file, name='serve_media_file'), # pattern for download
+    re_path(r'^.*media/(?P<path>.*)$', serve_file, name='serve_media_file'), # pattern for download
     re_path(r'^work/(?P<path>.*)$', serve_file, name='serve_work_file'), # pattern for download
     re_path(r'^.*$', index, name='index'),  # Catch-all pattern to serve the React app
 ]

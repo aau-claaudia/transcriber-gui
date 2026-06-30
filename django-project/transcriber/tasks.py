@@ -5,6 +5,7 @@ import os
 import shutil
 import signal
 import logging
+import json
 from pathlib import Path
 
 from django.conf import settings
@@ -15,7 +16,10 @@ logger = logging.getLogger(__name__)
 def transcription_task(self, model_size, language):
     logger.info('Starting the transcription task now...')
     directory_path: str = os.path.join(settings.MEDIA_ROOT, 'UPLOADS/INPUT')
-    output_dir_path: str = os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS/')
+
+    # Use a temporary output directory during the transcription run
+    output_dir_path: str = os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS_TEMP')
+    os.makedirs(output_dir_path, exist_ok=True)
     transcriber_output_file: str = os.path.join(output_dir_path, "transcriber_output.txt")
     process = None  # Initialize the process variable
 
@@ -41,6 +45,50 @@ def transcription_task(self, model_size, language):
         # Capture the output and error after the process completes
         output, error = process.communicate()
         write_transcriber_output(error, output, transcriber_output_file, directory_path, model_size)
+
+        # Distribute files to separate directories for each input file
+        input_files = [f for f in os.listdir(directory_path) if os.path.isfile(os.path.join(directory_path, f))]
+        for filename in input_files:
+            filename_without_ext, _ = os.path.splitext(filename)
+            transcription_key = f"{filename_without_ext}_{model_size}_{language}"
+            transcription_dir = os.path.join(settings.MEDIA_ROOT, transcription_key)
+
+            trans_dir = os.path.join(transcription_dir, 'TRANSCRIPTIONS')
+            comp_dir = os.path.join(transcription_dir, 'COMPLETED')
+            data_dir = os.path.join(transcription_dir, 'data')
+
+            os.makedirs(trans_dir, exist_ok=True)
+            os.makedirs(comp_dir, exist_ok=True)
+            os.makedirs(data_dir, exist_ok=True)
+
+            # Write metadata.json
+            metadata_content = {
+                "input_file_name": filename,
+                "input_file_url": f"/media/{transcription_key}/COMPLETED/{filename}"
+            }
+            metadata_file = os.path.join(data_dir, 'metadata.json')
+            with open(metadata_file, 'w') as mf:
+                json.dump(metadata_content, mf, indent=4)
+
+            # Move the input file from UPLOADS/INPUT to the COMPLETED folder in the new directory
+            src_file = os.path.join(directory_path, filename)
+            dst_file = os.path.join(comp_dir, filename)
+            shutil.move(src_file, dst_file)
+            logger.info(f"Moved input file: {src_file} to {dst_file}")
+
+            # Move matching output files from TRANSCRIPTIONS_TEMP to TRANSCRIPTIONS
+            for out_item in os.listdir(output_dir_path):
+                if out_item.startswith(filename_without_ext):
+                    src_out = os.path.join(output_dir_path, out_item)
+                    dst_out = os.path.join(trans_dir, out_item)
+                    shutil.move(src_out, dst_out)
+
+            # Copy transcription output log files
+            for log_name in ["transcriber_output.txt", "transcribe.log"]:
+                log_path = os.path.join(output_dir_path, log_name)
+                if os.path.exists(log_path):
+                    shutil.copy(log_path, os.path.join(trans_dir, log_name))
+
     except subprocess.CalledProcessError as e:
         write_transcriber_output(e.stderr, e.stdout, transcriber_output_file, directory_path, model_size)
 
@@ -55,17 +103,9 @@ def transcription_task(self, model_size, language):
             # clean up the input files
             clean_dir(directory_path)
 
-    # moved uploaded files from the input directory to COMPLETED folder
-    transcribed_path: str = os.path.join(settings.MEDIA_ROOT, 'COMPLETED')
-    os.makedirs(transcribed_path, exist_ok=True)
-
-    for item in os.listdir(directory_path):
-        source_path = os.path.join(directory_path, item)
-        target_path = os.path.join(transcribed_path, item)
-        # Check if the item is a file (not a directory)
-        if os.path.isfile(source_path):
-            shutil.move(source_path, target_path)
-            logging.info(f"Moved file: {source_path} to {target_path}")
+        # Clean up the TRANSCRIPTIONS_TEMP directory
+        if os.path.exists(output_dir_path):
+            shutil.rmtree(output_dir_path)
 
     return "Task completed"
 
