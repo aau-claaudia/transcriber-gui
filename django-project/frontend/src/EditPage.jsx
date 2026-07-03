@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
-const EditPage = ({ transcriptionKey, transcriptionData, onBack }) => {
+const EditPage = ({ transcriptionKey, transcriptionData, onBack, onOpenNotes }) => {
     const [notes, setNotes] = useState([]);
-    const [newNote, setNewNote] = useState('');
     const { logFiles, zipFile } = transcriptionData || {};
 
     // Load notes from localStorage on mount/key change
@@ -20,19 +19,6 @@ const EditPage = ({ transcriptionKey, transcriptionData, onBack }) => {
         }
     }, [transcriptionKey]);
 
-    // Save note to localStorage
-    const handleSaveNote = () => {
-        if (!newNote.trim()) return;
-        const noteObj = {
-            id: Date.now(),
-            text: newNote,
-            timestamp: new Date().toLocaleString()
-        };
-        const updatedNotes = [noteObj, ...notes];
-        setNotes(updatedNotes);
-        localStorage.setItem(`notes_${transcriptionKey}`, JSON.stringify(updatedNotes));
-        setNewNote('');
-    };
 
     // Delete note
     const handleDeleteNote = (noteId) => {
@@ -183,22 +169,15 @@ const EditPage = ({ transcriptionKey, transcriptionData, onBack }) => {
             {/* Right Column: Notes & Annotation System */}
             <div className="card-panel">
                 <div className="notes-container">
-                    <h2>Notes & Annotation</h2>
-                    <p style={{ fontSize: '0.85rem', marginBottom: '1rem' }}>
-                        Store your notes, markers, or summaries here. Notes are stored locally and will persist.
-                    </p>
-
-                    <div className="notes-input-area">
-                        <textarea
-                            className="notes-textarea"
-                            placeholder="Add a new note for this transcription..."
-                            value={newNote}
-                            onChange={(e) => setNewNote(e.target.value)}
-                        />
-                        <button className="btn btn-primary" onClick={handleSaveNote}>
-                            Save Note
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <h2 style={{ marginTop: 0 }}>Notes & Annotation</h2>
+                        <button className="btn btn-primary" onClick={onOpenNotes}>
+                            📝 Edit Notes
                         </button>
                     </div>
+                    <p style={{ fontSize: '0.85rem', marginBottom: '1rem' }}>
+                        Notes are stored locally. Click "Handle Notes" above to add new corrective notes or markers.
+                    </p>
 
                     <hr style={{ border: 'none', borderBottom: '1px solid var(--border-color)', margin: '1rem 0' }} />
 

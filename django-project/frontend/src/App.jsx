@@ -4,6 +4,7 @@ import axios from 'axios';
 import Settings from "./Settings.jsx";
 import TranscriptionStatus from "./TranscriptionStatus.jsx";
 import EditPage from "./EditPage.jsx";
+import Notes from "./Notes.jsx";
 import transcriberImage from "./logo-transcriber.png";
 import UcloudFiles from "./UcloudFiles.jsx";
 
@@ -780,6 +781,16 @@ function App() {
                     transcriptionKey={selectedTranscriptionKey}
                     transcriptionData={groupedTranscriptions[selectedTranscriptionKey]}
                     onBack={() => setCurrentPage('dashboard')}
+                    onOpenNotes={() => setCurrentPage('notes')}
+                />
+            )}
+
+            {currentPage === 'notes' && selectedTranscriptionKey && (
+                <Notes
+                    transcriptionKey={selectedTranscriptionKey}
+                    transcriptionData={groupedTranscriptions[selectedTranscriptionKey]}
+                    onBackToDashboard={() => setCurrentPage('dashboard')}
+                    onBackToEdit={() => setCurrentPage('edit')}
                 />
             )}
 
