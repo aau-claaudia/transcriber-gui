@@ -65,7 +65,7 @@ python -m celery -A django-project worker
 Checkout and install the transcriber Python application
 ``` bash
 cd transcriber
-git clone --depth 1 --single-branch --recursive --shallow-submodules -b "V1.20" https://github.com/aau-claaudia/transcriber.git aau-whisper
+git clone --depth 1 --single-branch --recursive --shallow-submodules -b "V1.21" https://github.com/aau-claaudia/transcriber.git aau-whisper
 cd aau-whisper
 pip install -e .
 ```

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 
 // Utility helper to convert HH:MM:SS.mmm to seconds
 function timestampToSeconds(timestamp) {
@@ -11,104 +11,33 @@ function timestampToSeconds(timestamp) {
     return hours * 3600 + minutes * 60 + secondsWithMs;
 }
 
-// Customized Audio Player for each transcription segment
-const SegmentAudioPlayer = ({ audioUrl, segmentId, activeSegmentId, setActiveSegmentId, startTimeStr, endTimeStr }) => {
+// Single-control UI for one segment, driven by shared player state
+const SegmentAudioPlayer = ({
+                                audioUrl,
+                                segmentId,
+                                activeSegmentId,
+                                currentTimeBySegment,
+                                onToggleSegment,
+                                onSeekSegment,
+                                startTimeStr,
+                                endTimeStr
+                            }) => {
     const startSecs = timestampToSeconds(startTimeStr);
     const endSecs = timestampToSeconds(endTimeStr);
     const duration = Math.max(0.1, endSecs - startSecs);
 
-    const [currentTime, setCurrentTime] = useState(0); // relative to startSecs
-    const [isPlaying, setIsPlaying] = useState(false);
-    const audioRef = useRef(null);
-
-    // Initialize audio element
-    useEffect(() => {
-        if (!audioUrl) return;
-
-        const audio = new Audio(audioUrl);
-        audio.preload = 'none';
-        audioRef.current = audio;
-
-        const handleTimeUpdate = () => {
-            const relativeTime = audio.currentTime - startSecs;
-            if (audio.currentTime >= endSecs) {
-                audio.pause();
-                audio.currentTime = startSecs;
-                setIsPlaying(false);
-                setCurrentTime(0);
-                if (activeSegmentId === segmentId) {
-                    setActiveSegmentId(null);
-                }
-            } else {
-                setCurrentTime(Math.max(0, relativeTime));
-            }
-        };
-
-        const handleEnded = () => {
-            setIsPlaying(false);
-            setCurrentTime(0);
-            if (activeSegmentId === segmentId) {
-                setActiveSegmentId(null);
-            }
-        };
-
-        audio.addEventListener('timeupdate', handleTimeUpdate);
-        audio.addEventListener('ended', handleEnded);
-
-        return () => {
-            audio.pause();
-            audio.removeEventListener('timeupdate', handleTimeUpdate);
-            audio.removeEventListener('ended', handleEnded);
-        };
-    }, [audioUrl, startSecs, endSecs, segmentId, activeSegmentId, setActiveSegmentId]);
-
-    // Handle pausing from external activeSegmentId change
-    useEffect(() => {
-        const audio = audioRef.current;
-        if (!audio) return;
-
-        if (activeSegmentId !== segmentId && isPlaying) {
-            audio.pause();
-            setIsPlaying(false);
-        }
-    }, [activeSegmentId, segmentId, isPlaying]);
-
-    const togglePlay = () => {
-        const audio = audioRef.current;
-        if (!audio) return;
-
-        if (isPlaying) {
-            audio.pause();
-            setIsPlaying(false);
-            setActiveSegmentId(null);
-        } else {
-            setActiveSegmentId(segmentId);
-            if (audio.currentTime < startSecs || audio.currentTime >= endSecs) {
-                audio.currentTime = startSecs;
-            }
-            audio.play().catch(err => console.error("Audio playback error:", err));
-            setIsPlaying(true);
-        }
-    };
+    const isPlaying = activeSegmentId === segmentId;
+    const currentTime = currentTimeBySegment[segmentId] ?? 0;
+    const progressPercent = Math.max(0, Math.min(100, (currentTime / duration) * 100));
 
     const handleProgressClick = (e) => {
-        const audio = audioRef.current;
-        if (!audio || !audioUrl) return;
-
+        if (!audioUrl) return;
         const rect = e.currentTarget.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
-        const width = rect.width;
+        const width = rect.width || 1;
         const clickRatio = Math.max(0, Math.min(1, clickX / width));
-        const targetTime = startSecs + clickRatio * duration;
-
-        audio.currentTime = targetTime;
-        setCurrentTime(clickRatio * duration);
-
-        if (!isPlaying) {
-            setActiveSegmentId(segmentId);
-            audio.play().catch(err => console.error("Audio playback error:", err));
-            setIsPlaying(true);
-        }
+        const relativeTime = clickRatio * duration;
+        onSeekSegment(segmentId, relativeTime);
     };
 
     if (!audioUrl) {
@@ -123,11 +52,13 @@ const SegmentAudioPlayer = ({ audioUrl, segmentId, activeSegmentId, setActiveSeg
         );
     }
 
-    const progressPercent = (currentTime / duration) * 100;
-
     return (
         <div className="segment-audio-player">
-            <button className="play-segment-btn" onClick={togglePlay} title={isPlaying ? "Pause Segment" : "Play Segment"}>
+            <button
+                className="play-segment-btn"
+                onClick={() => onToggleSegment(segmentId)}
+                title={isPlaying ? 'Pause Segment' : 'Play Segment'}
+            >
                 {isPlaying ? '⏸️' : '▶️'}
             </button>
             <div className="segment-progress-container" onClick={handleProgressClick}>
@@ -141,19 +72,25 @@ const SegmentAudioPlayer = ({ audioUrl, segmentId, activeSegmentId, setActiveSeg
 };
 
 // Segment Card containing speaker, duration, audio controls, text and selection-based note adding form
-const SegmentCard = ({ segment, segmentId, audioUrl, activeSegmentId, setActiveSegmentId, onAddNote }) => {
+const SegmentCard = ({
+                         segment,
+                         segmentId,
+                         audioUrl,
+                         activeSegmentId,
+                         currentTimeBySegment,
+                         onToggleSegment,
+                         onSeekSegment,
+                         onAddNote
+                     }) => {
     const [selectionState, setSelectionState] = useState({ text: '', isOpen: false });
     const [correctiveText, setCorrectiveText] = useState('');
 
     const handleTextSelection = (e) => {
         const selection = window.getSelection();
-        const selectedText = selection.toString().trim();
+        const selectedText = selection?.toString().trim();
 
         if (selectedText && e.currentTarget.contains(selection.anchorNode)) {
-            setSelectionState({
-                text: selectedText,
-                isOpen: true
-            });
+            setSelectionState({ text: selectedText, isOpen: true });
         }
     };
 
@@ -163,7 +100,6 @@ const SegmentCard = ({ segment, segmentId, audioUrl, activeSegmentId, setActiveS
         const formattedNote = `[${segment.startTime}][${segment.endTime}]:..${selectionState.text}..: ${correctiveText}`;
         onAddNote(formattedNote);
 
-        // Reset
         setCorrectiveText('');
         setSelectionState({ text: '', isOpen: false });
     };
@@ -180,17 +116,17 @@ const SegmentCard = ({ segment, segmentId, audioUrl, activeSegmentId, setActiveS
                 <span className="time-badge">⏱️ {segment.startTime} - {segment.endTime}</span>
             </div>
 
-            {/* Audio player scoped to segment */}
             <SegmentAudioPlayer
                 audioUrl={audioUrl}
                 segmentId={segmentId}
                 activeSegmentId={activeSegmentId}
-                setActiveSegmentId={setActiveSegmentId}
+                currentTimeBySegment={currentTimeBySegment}
+                onToggleSegment={onToggleSegment}
+                onSeekSegment={onSeekSegment}
                 startTimeStr={segment.startTime}
                 endTimeStr={segment.endTime}
             />
 
-            {/* Transcribed text, highlighting triggers selection note form */}
             <div
                 className="segment-text"
                 onMouseUp={handleTextSelection}
@@ -199,7 +135,6 @@ const SegmentCard = ({ segment, segmentId, audioUrl, activeSegmentId, setActiveS
                 {segment.text}
             </div>
 
-            {/* Selection Form */}
             {selectionState.isOpen && (
                 <div className="segment-selection-form">
                     <div className="selected-text-preview">
@@ -227,32 +162,44 @@ const SegmentCard = ({ segment, segmentId, audioUrl, activeSegmentId, setActiveS
     );
 };
 
-// method for creating relative links from the file URLs
-const toRelativeFetchUrl = (fileUrl) => {
-    if (!fileUrl) return fileUrl;
-    try {
-        const parsedUrl = new URL(fileUrl, window.location.href, true);
-
-        const pathname = parsedUrl.pathname || '';
-        const search = parsedUrl.search || '';
-
-        return `${pathname}${search}`;
-    } catch (err) {
-        console.warn('Could not parse file URL, using original value:', fileUrl, err);
-        return fileUrl;
-    }
-}
-
 const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackToEdit }) => {
     const [notes, setNotes] = useState([]);
     const [segments, setSegments] = useState([]);
     const [loadingSegments, setLoadingSegments] = useState(true);
     const [errorSegments, setErrorSegments] = useState(null);
+
+    // Shared audio state
+    const audioRef = useRef(null);
     const [activeSegmentId, setActiveSegmentId] = useState(null);
+    const [currentTimeBySegment, setCurrentTimeBySegment] = useState({});
+
+    // Segment timing cache for shared player logic
+    const segmentBounds = useMemo(() => {
+        return segments.map((s) => ({
+            start: timestampToSeconds(s.startTime),
+            end: timestampToSeconds(s.endTime)
+        }));
+    }, [segments]);
 
     // Get .dote.json file from transcriptionData files
     const doteFile = transcriptionData?.files?.find(f => f.file_name.endsWith('.dote.json'));
     const audioUrl = transcriptionData?.inputFileUrl;
+
+    // method for creating relative links from the file URLs
+    const toRelativeFetchUrl = (fileUrl) => {
+        if (!fileUrl) return fileUrl;
+        try {
+            const parsedUrl = new URL(fileUrl, window.location.href, true);
+
+            const pathname = parsedUrl.pathname || '';
+            const search = parsedUrl.search || '';
+
+            return `${pathname}${search}`;
+        } catch (err) {
+            console.warn('Could not parse file URL, using original value:', fileUrl, err);
+            return fileUrl;
+        }
+    }
 
     // Load notes on mount
     useEffect(() => {
@@ -261,7 +208,7 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
             try {
                 setNotes(JSON.parse(savedNotes));
             } catch (e) {
-                console.error("Error parsing saved notes:", e);
+                console.error('Error parsing saved notes:', e);
                 setNotes([]);
             }
         } else {
@@ -274,12 +221,13 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
         if (!doteFile) {
             setSegments([]);
             setLoadingSegments(false);
-            setErrorSegments("No .dote.json file found for this transcription run.");
+            setErrorSegments('No .dote.json file found for this transcription run.');
             return;
         }
 
         setLoadingSegments(true);
         setErrorSegments(null);
+
         fetch(toRelativeFetchUrl(doteFile.file_url))
             .then(res => {
                 if (!res.ok) {
@@ -297,11 +245,114 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                 setLoadingSegments(false);
             })
             .catch(err => {
-                console.error("Error loading dote file:", err);
-                setErrorSegments("Could not load transcription segments from the server.");
+                console.error('Error loading dote file:', err);
+                setErrorSegments('Could not load transcription segments from the server.');
                 setLoadingSegments(false);
             });
     }, [doteFile?.file_url]);
+
+    // Create one shared Audio element for this page
+    useEffect(() => {
+        if (!audioUrl) {
+            audioRef.current = null;
+            setActiveSegmentId(null);
+            setCurrentTimeBySegment({});
+            return;
+        }
+
+        const audio = new Audio(audioUrl);
+        audio.preload = 'metadata';
+        audioRef.current = audio;
+
+        const onTimeUpdate = () => {
+            if (activeSegmentId == null) return;
+            const bounds = segmentBounds[activeSegmentId];
+            if (!bounds) return;
+
+            const relative = Math.max(0, audio.currentTime - bounds.start);
+
+            if (audio.currentTime >= bounds.end) {
+                audio.pause();
+                audio.currentTime = bounds.start;
+                setCurrentTimeBySegment(prev => ({ ...prev, [activeSegmentId]: 0 }));
+                setActiveSegmentId(null);
+                return;
+            }
+
+            setCurrentTimeBySegment(prev => ({ ...prev, [activeSegmentId]: relative }));
+        };
+
+        const onEnded = () => {
+            if (activeSegmentId != null) {
+                setCurrentTimeBySegment(prev => ({ ...prev, [activeSegmentId]: 0 }));
+            }
+            setActiveSegmentId(null);
+        };
+
+        audio.addEventListener('timeupdate', onTimeUpdate);
+        audio.addEventListener('ended', onEnded);
+
+        return () => {
+            audio.pause();
+            audio.removeEventListener('timeupdate', onTimeUpdate);
+            audio.removeEventListener('ended', onEnded);
+        };
+    }, [audioUrl, activeSegmentId, segmentBounds]);
+
+    // Toggle play/pause for a segment using shared audio
+    const handleToggleSegment = (segmentId) => {
+        const audio = audioRef.current;
+        if (!audio) return;
+
+        const bounds = segmentBounds[segmentId];
+        if (!bounds) return;
+
+        if (activeSegmentId === segmentId) {
+            audio.pause();
+            setActiveSegmentId(null);
+            return;
+        }
+
+        setActiveSegmentId(segmentId);
+
+        // Ensure playhead is inside target segment window
+        if (audio.currentTime < bounds.start || audio.currentTime >= bounds.end) {
+            audio.currentTime = bounds.start;
+            setCurrentTimeBySegment(prev => ({ ...prev, [segmentId]: 0 }));
+        }
+
+        audio.play().catch(err => {
+            // AbortError is expected when a pending play gets superseded by pause/seek
+            if (err?.name !== 'AbortError') {
+                console.error('Audio playback error:', err);
+            }
+        });
+    };
+
+    // Seek within one segment (relative seconds)
+    const handleSeekSegment = (segmentId, relativeTime) => {
+        const audio = audioRef.current;
+        if (!audio) return;
+
+        const bounds = segmentBounds[segmentId];
+        if (!bounds) return;
+
+        const duration = Math.max(0.1, bounds.end - bounds.start);
+        const clampedRelative = Math.max(0, Math.min(duration, relativeTime));
+        const absoluteTarget = bounds.start + clampedRelative;
+
+        audio.currentTime = absoluteTarget;
+        setCurrentTimeBySegment(prev => ({ ...prev, [segmentId]: clampedRelative }));
+
+        if (activeSegmentId !== segmentId) {
+            setActiveSegmentId(segmentId);
+            audio.play().catch(err => {
+                if (err?.name !== 'AbortError') {
+                    console.error('Audio playback error:', err);
+                }
+            });
+        }
+    };
 
     const handleAddNote = (noteText) => {
         const noteObj = {
@@ -322,7 +373,6 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
 
     return (
         <div className="notes-page" style={{ animation: 'fadeIn 0.4s ease-out' }}>
-            {/* Header / Nav Area */}
             <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
                     <button className="btn btn-secondary" onClick={onBackToDashboard}>
@@ -336,7 +386,6 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
             </div>
 
             <div className="notes-page-layout">
-                {/* Left Area: Segment List & Audio controls */}
                 <div className="card-panel">
                     <h3 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
                         🎙️ Transcription Segments
@@ -372,7 +421,9 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                                     segment={segment}
                                     audioUrl={audioUrl}
                                     activeSegmentId={activeSegmentId}
-                                    setActiveSegmentId={setActiveSegmentId}
+                                    currentTimeBySegment={currentTimeBySegment}
+                                    onToggleSegment={handleToggleSegment}
+                                    onSeekSegment={handleSeekSegment}
                                     onAddNote={handleAddNote}
                                 />
                             ))}
@@ -380,7 +431,6 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                     )}
                 </div>
 
-                {/* Right Area: Notes Display & Delete */}
                 <div className="card-panel">
                     <h3 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
                         📝 Saved Notes & Corrections ({notes.length})
