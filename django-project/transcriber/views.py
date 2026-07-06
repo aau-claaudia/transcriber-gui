@@ -265,11 +265,63 @@ def serve_file(request, path):
     if not os.path.exists(file_path):
         raise Http404("File not found")
 
-    # Open the file and create the response
+    file_size = os.path.getsize(file_path)
+    content_type = _guess_content_type(file_path)
+
+    # Handle HTTP Range requests — required by browsers for audio/video seeking
+    range_header = request.META.get('HTTP_RANGE', '').strip()
+    if range_header and range_header.startswith('bytes='):
+        try:
+            # Send back a chunk of the audio file, the browser will automatically request more data as needed
+            chunk_size = 256 * 1024  # 256 KB
+            range_spec = range_header[6:]  # strip 'bytes='
+            start_str, _, end_str = range_spec.partition('-')
+            start = int(start_str) if start_str else 0
+            if end_str:
+                end = min(int(end_str), file_size - 1)
+            else:
+                # Open-ended request: cap how much we serve per response
+                end = min(start + chunk_size - 1, file_size - 1)
+            if start > end or start < 0:
+                response = HttpResponse(status=416)
+                response['Content-Range'] = f'bytes */{file_size}'
+                return response
+            length = end - start + 1
+            with open(file_path, 'rb') as f:
+                f.seek(start)
+                data = f.read(length)
+            response = HttpResponse(data, status=206, content_type=content_type)
+            response['Content-Range'] = f'bytes {start}-{end}/{file_size}'
+            response['Content-Length'] = str(length)
+            response['Accept-Ranges'] = 'bytes'
+            return response
+        except (ValueError, IOError):
+            pass  # fall through to full response on any parse error
+
+    # Full file response (also advertises range support)
     with open(file_path, 'rb') as f:
-        response = HttpResponse(f.read(), content_type='application/octet-stream')
-        response['Content-Disposition'] = 'attachment; filename="{}"'.format(os.path.basename(file_path))
-        return response
+        response = HttpResponse(f.read(), content_type=content_type)
+    response['Content-Length'] = str(file_size)
+    response['Accept-Ranges'] = 'bytes'
+    response['Content-Disposition'] = 'inline; filename="{}"'.format(os.path.basename(file_path))
+    return response
+
+
+# TODO: refactor in order to always return a .mp3 file (convert) the HTML audio tag does not support all formats
+def _guess_content_type(file_path):
+    """Return a suitable MIME type for common audio/video files."""
+    ext = os.path.splitext(file_path)[1].lower()
+    mime_map = {
+        '.mp3': 'audio/mpeg',
+        '.wav': 'audio/wav',
+        '.m4a': 'audio/mp4',
+        '.mp4': 'video/mp4',
+        '.mpeg': 'video/mpeg',
+        '.mpg': 'video/mpeg',
+        '.wma': 'audio/x-ms-wma',
+        '.mkv': 'video/x-matroska',
+    }
+    return mime_map.get(ext, 'application/octet-stream')
 
 
 def validate_file_size(actual_file_size, file_name, meta_data_list):

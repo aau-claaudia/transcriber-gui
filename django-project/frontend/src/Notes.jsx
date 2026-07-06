@@ -251,7 +251,15 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
             });
     }, [doteFile?.file_url]);
 
-    // Create one shared Audio element for this page
+    // Refs so that event listeners always see current values without being recreated
+    const activeSegmentIdRef = useRef(null);
+    const segmentBoundsRef = useRef([]);
+
+    // Keep refs in sync with state/memo
+    useEffect(() => { activeSegmentIdRef.current = activeSegmentId; }, [activeSegmentId]);
+    useEffect(() => { segmentBoundsRef.current = segmentBounds; }, [segmentBounds]);
+
+    // Create one shared Audio element — only recreated when the source URL changes
     useEffect(() => {
         if (!audioUrl) {
             audioRef.current = null;
@@ -262,11 +270,13 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
 
         const audio = new Audio(audioUrl);
         audio.preload = 'metadata';
+        audio.autoplay = false;
         audioRef.current = audio;
 
         const onTimeUpdate = () => {
-            if (activeSegmentId == null) return;
-            const bounds = segmentBounds[activeSegmentId];
+            const segId = activeSegmentIdRef.current;
+            if (segId == null) return;
+            const bounds = segmentBoundsRef.current[segId];
             if (!bounds) return;
 
             const relative = Math.max(0, audio.currentTime - bounds.start);
@@ -274,19 +284,22 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
             if (audio.currentTime >= bounds.end) {
                 audio.pause();
                 audio.currentTime = bounds.start;
-                setCurrentTimeBySegment(prev => ({ ...prev, [activeSegmentId]: 0 }));
+                setCurrentTimeBySegment(prev => ({ ...prev, [segId]: 0 }));
                 setActiveSegmentId(null);
+                activeSegmentIdRef.current = null;
                 return;
             }
 
-            setCurrentTimeBySegment(prev => ({ ...prev, [activeSegmentId]: relative }));
+            setCurrentTimeBySegment(prev => ({ ...prev, [segId]: relative }));
         };
 
         const onEnded = () => {
-            if (activeSegmentId != null) {
-                setCurrentTimeBySegment(prev => ({ ...prev, [activeSegmentId]: 0 }));
+            const segId = activeSegmentIdRef.current;
+            if (segId != null) {
+                setCurrentTimeBySegment(prev => ({ ...prev, [segId]: 0 }));
             }
             setActiveSegmentId(null);
+            activeSegmentIdRef.current = null;
         };
 
         audio.addEventListener('timeupdate', onTimeUpdate);
@@ -297,7 +310,7 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
             audio.removeEventListener('timeupdate', onTimeUpdate);
             audio.removeEventListener('ended', onEnded);
         };
-    }, [audioUrl, activeSegmentId, segmentBounds]);
+    }, [audioUrl]);
 
     // Toggle play/pause for a segment using shared audio
     const handleToggleSegment = (segmentId) => {
