@@ -803,6 +803,21 @@ tr:hover td {
   animation: pulse 2s infinite ease-in-out;
 }
 
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+
 .empty-state {
   display: flex;
   flex-direction: column;

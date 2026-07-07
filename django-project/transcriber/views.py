@@ -7,6 +7,7 @@ from .serializers import FileUploadSerializer, MultipleFileUploadSerializer, Mul
 import os
 import json
 from django.http import JsonResponse, HttpResponse, Http404
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView
 from .tasks import transcription_task, shutdown_server_task
 from .model_memory_util import calculate_available_memory
@@ -309,22 +310,14 @@ def serve_file(request, path):
     return response
 
 
-# TODO: refactor in order to always return a .mp3 file (convert) the HTML audio tag does not support all formats
 def _guess_content_type(file_path):
     """Return a suitable MIME type for common audio/video files."""
     ext = os.path.splitext(file_path)[1].lower()
     mime_map = {
         '.mp3': 'audio/mpeg',
         '.wav': 'audio/wav',
-        '.m4a': 'audio/mp4',
-        '.mp4': 'video/mp4',
-        '.mpeg': 'video/mpeg',
-        '.mpg': 'video/mpeg',
-        '.wma': 'audio/x-ms-wma',
-        '.mkv': 'video/x-matroska',
     }
     return mime_map.get(ext, 'application/octet-stream')
-
 
 def validate_file_size(actual_file_size, file_name, meta_data_list):
     size = get_size_by_name(meta_data_list, file_name)
@@ -362,6 +355,93 @@ def clean_model_name(model_name):
         return model_name[len(prefix_to_remove):]
 
     return model_name
+
+@csrf_exempt
+def convert_audio(request):
+    """
+    POST endpoint: convert the input audio/video file for a transcription to .mp3.
+    Called when editing notes and the input file format is unsupported.
+    Expected JSON body:
+        { "dir_name": "<transcription dir>", "input_file_url": "<absolute url>" }
+    Returns:
+        { "status": "converted"|"already_converted"|"unchanged", "input_file_url": "<absolute url>" }
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, AttributeError):
+        return JsonResponse({'error': 'Invalid JSON body'}, status=400)
+
+    dir_name = body.get('dir_name', '').strip()
+    input_file_url = body.get('input_file_url', '').strip()
+
+    if not dir_name or not input_file_url:
+        return JsonResponse({'error': 'dir_name and input_file_url are required'}, status=400)
+
+    # Resolve the URL to an absolute filesystem path
+    try:
+        parsed = input_file_url
+        # Strip scheme + host if present, leaving only the path
+        if '://' in parsed:
+            from urllib.parse import urlparse
+            parsed = urlparse(input_file_url).path
+
+        # Determine base directory from the URL path prefix
+        if parsed.startswith('/work/'):
+            input_fs_path = parsed  # /work/... is an absolute path on UCloud
+        elif settings.MEDIA_URL and parsed.startswith(settings.MEDIA_URL):
+            rel = parsed[len(settings.MEDIA_URL):]
+            input_fs_path = os.path.join(settings.MEDIA_ROOT, rel)
+        else:
+            # Fallback: try treating it as relative to MEDIA_ROOT
+            input_fs_path = os.path.join(settings.MEDIA_ROOT, parsed.lstrip('/'))
+    except Exception as e:
+        logger.error(f"convert_audio: could not resolve input URL '{input_file_url}': {e}")
+        return JsonResponse({'status': 'unchanged', 'input_file_url': input_file_url})
+
+    if not os.path.exists(input_fs_path):
+        logger.warning(f"convert_audio: input file not found at '{input_fs_path}'")
+        return JsonResponse({'status': 'unchanged', 'input_file_url': input_file_url})
+
+    # Determine output path: <MEDIA_ROOT>/<dir_name>/data/converted_audio.mp3
+    data_dir = os.path.join(settings.MEDIA_ROOT, dir_name, 'data')
+    os.makedirs(data_dir, exist_ok=True)
+    output_fs_path = os.path.join(data_dir, 'converted_audio.mp3')
+
+    # Idempotency: if already converted, skip ffmpeg
+    if os.path.exists(output_fs_path):
+        logger.info(f"convert_audio: already converted for '{dir_name}', returning cached path.")
+        output_media_url = f"{settings.MEDIA_URL}{dir_name}/data/converted_audio.mp3"
+        new_abs_url = request.build_absolute_uri(output_media_url)
+        return JsonResponse({'status': 'already_converted', 'input_file_url': new_abs_url})
+
+    # Run conversion
+    success, result_path = convert_to_mp3(input_fs_path, output_fs_path)
+
+    if not success:
+        logger.warning(f"convert_audio: ffmpeg conversion failed for '{dir_name}'")
+        return JsonResponse({'status': 'unchanged', 'input_file_url': input_file_url})
+
+    # Update metadata.json with the new URL
+    output_media_url = f"{settings.MEDIA_URL}{dir_name}/data/converted_audio.mp3"
+    metadata_path = os.path.join(data_dir, 'metadata.json')
+    try:
+        meta = {}
+        if os.path.exists(metadata_path):
+            with open(metadata_path, 'r') as f:
+                meta = json.load(f)
+        meta['input_file_url'] = output_media_url
+        with open(metadata_path, 'w') as f:
+            json.dump(meta, f, indent=2)
+        logger.info(f"convert_audio: updated metadata.json for '{dir_name}'")
+    except Exception as e:
+        logger.error(f"convert_audio: failed to update metadata.json for '{dir_name}': {e}")
+
+    new_abs_url = request.build_absolute_uri(output_media_url)
+    return JsonResponse({'status': 'converted', 'input_file_url': new_abs_url})
+
 
 def convert_to_mp3(input_file, output_file):
     """

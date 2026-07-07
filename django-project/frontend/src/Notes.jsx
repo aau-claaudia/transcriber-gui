@@ -168,6 +168,10 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
     const [loadingSegments, setLoadingSegments] = useState(true);
     const [errorSegments, setErrorSegments] = useState(null);
 
+    // Audio URL state — may be updated after server-side conversion
+    const [audioUrl, setAudioUrl] = useState(transcriptionData?.inputFileUrl ?? null);
+    const [audioConverting, setAudioConverting] = useState(false);
+
     // Shared audio state
     const audioRef = useRef(null);
     const [activeSegmentId, setActiveSegmentId] = useState(null);
@@ -183,7 +187,6 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
 
     // Get .dote.json file from transcriptionData files
     const doteFile = transcriptionData?.files?.find(f => f.file_name.endsWith('.dote.json'));
-    const audioUrl = transcriptionData?.inputFileUrl;
 
     // method for creating relative links from the file URLs
     const toRelativeFetchUrl = (fileUrl) => {
@@ -200,6 +203,59 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
             return fileUrl;
         }
     }
+
+    // On mount: if the audio source isn't already .mp3 or .wav, request server conversion
+    useEffect(() => {
+        const rawUrl = transcriptionData?.inputFileUrl;
+        const dirName = transcriptionData?.name;
+        if (!rawUrl) {
+            setAudioUrl(null);
+            return;
+        }
+
+        // Extract the path extension
+        let ext = '';
+        try {
+            ext = new URL(rawUrl).pathname.split('.').pop().toLowerCase();
+        } catch {
+            ext = rawUrl.split('.').pop().toLowerCase();
+        }
+
+        const nativeFormats = new Set(['mp3', 'wav']);
+        if (nativeFormats.has(ext)) {
+            // Already in a browser-native format — use as-is
+            setAudioUrl(rawUrl);
+            return;
+        }
+
+        // Trigger conversion of video/audio file
+        if (!dirName) {
+            // No dir context to convert — fall back to original URL
+            setAudioUrl(rawUrl);
+            return;
+        }
+
+        setAudioConverting(true);
+        fetch('/convert-audio/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dir_name: dirName, input_file_url: rawUrl }),
+        })
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.json();
+            })
+            .then(data => {
+                setAudioUrl(data.input_file_url || rawUrl);
+            })
+            .catch(err => {
+                console.error('Audio conversion request failed:', err);
+                setAudioUrl(rawUrl); // graceful fallback
+            })
+            .finally(() => {
+                setAudioConverting(false);
+            });
+    }, [transcriptionData?.inputFileUrl, transcriptionData?.name]);
 
     // Load notes on mount
     useEffect(() => {
@@ -392,20 +448,71 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                         ← Back to Dashboard
                     </button>
                     <button className="btn btn-secondary" onClick={onBackToEdit}>
-                        ← Back to Edit Page
+                        ← Back to Results Page
                     </button>
                 </div>
                 <h2 style={{ margin: 0, fontSize: '1.5rem' }}>Annotating: {transcriptionKey}</h2>
             </div>
 
             <div className="notes-page-layout">
-                <div className="card-panel">
+                <div className="card-panel" style={{ position: 'relative' }}>
                     <h3 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
                         🎙️ Transcription Segments
                     </h3>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
                         To take a corrective note, highlight any text within a segment. Use the audio controls next to each segment to verify speaker pronunciation.
                     </p>
+
+                    {/* Audio conversion loading overlay */}
+                    {audioConverting && (
+                        <div style={{
+                            position: 'absolute',
+                            inset: 0,
+                            borderRadius: 'var(--radius-lg, 12px)',
+                            background: 'rgba(10, 10, 18, 0.82)',
+                            backdropFilter: 'blur(6px)',
+                            WebkitBackdropFilter: 'blur(6px)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '1rem',
+                            zIndex: 10,
+                        }}>
+                            <div style={{
+                                width: '48px',
+                                height: '48px',
+                                borderRadius: '50%',
+                                border: '3px solid rgba(139, 92, 246, 0.25)',
+                                borderTopColor: 'var(--accent-violet, #8b5cf6)',
+                                animation: 'spin 0.9s linear infinite',
+                            }} />
+                            <div style={{ textAlign: 'center' }}>
+                                <p style={{ margin: 0, fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary, #f1f5f9)' }}>
+                                    🎵 Converting audio to MP3…
+                                </p>
+                                <p style={{ margin: '0.35rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted, #64748b)' }}>
+                                    This may take a moment for large files
+                                </p>
+                            </div>
+                            {/* Shimmer bar */}
+                            <div style={{
+                                width: '180px',
+                                height: '4px',
+                                borderRadius: '2px',
+                                background: 'rgba(139, 92, 246, 0.15)',
+                                overflow: 'hidden',
+                            }}>
+                                <div style={{
+                                    height: '100%',
+                                    width: '40%',
+                                    borderRadius: '2px',
+                                    background: 'linear-gradient(90deg, transparent, var(--accent-violet, #8b5cf6), transparent)',
+                                    animation: 'shimmer 1.4s ease-in-out infinite',
+                                }} />
+                            </div>
+                        </div>
+                    )}
 
                     {loadingSegments && (
                         <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
@@ -443,6 +550,7 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                         </div>
                     )}
                 </div>
+
 
                 <div className="card-panel">
                     <h3 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
