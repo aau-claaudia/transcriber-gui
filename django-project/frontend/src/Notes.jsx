@@ -469,7 +469,7 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                             position: 'absolute',
                             inset: 0,
                             borderRadius: 'var(--radius-lg, 12px)',
-                            background: 'rgba(10, 10, 18, 0.82)',
+                            background: 'var(--overlay-bg)',
                             backdropFilter: 'blur(6px)',
                             WebkitBackdropFilter: 'blur(6px)',
                             display: 'flex',
@@ -483,7 +483,7 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                                 width: '48px',
                                 height: '48px',
                                 borderRadius: '50%',
-                                border: '3px solid rgba(139, 92, 246, 0.25)',
+                                border: '3px solid var(--spinner-border)',
                                 borderTopColor: 'var(--accent-violet, #8b5cf6)',
                                 animation: 'spin 0.9s linear infinite',
                             }} />
@@ -500,7 +500,7 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                                 width: '180px',
                                 height: '4px',
                                 borderRadius: '2px',
-                                background: 'rgba(139, 92, 246, 0.15)',
+                                background: 'var(--shimmer-bg)',
                                 overflow: 'hidden',
                             }}>
                                 <div style={{
@@ -521,7 +521,7 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                     )}
 
                     {errorSegments && (
-                        <div style={{ padding: '1rem', background: 'rgba(244, 63, 94, 0.1)', border: '1px solid var(--accent-rose)', borderRadius: 'var(--radius-md)', color: '#fda4af', fontSize: '0.9rem' }}>
+                        <div style={{ padding: '1rem', background: 'var(--error-bg)', border: '1px solid var(--accent-rose)', borderRadius: 'var(--radius-md)', color: 'var(--error-text)', fontSize: '0.9rem' }}>
                             {errorSegments}
                         </div>
                     )}
