@@ -71,6 +71,21 @@
 
   --error-bg: rgba(244, 63, 94, 0.1);
   --error-text: #fda4af;
+
+  /* Settings & Dropzone tokens */
+  --select-bg: rgba(15, 23, 42, 0.8);
+
+  --slider-bg: rgba(255, 255, 255, 0.1);
+  --slider-checked-border: rgba(99, 102, 241, 0.4);
+
+  --dropzone-bg: rgba(99, 102, 241, 0.02);
+  --dropzone-bg-hover: rgba(99, 102, 241, 0.05);
+  --dropzone-border: rgba(99, 102, 241, 0.3);
+
+  --file-list-bg: rgba(0, 0, 0, 0.15);
+  --file-item-bg-hover: rgba(255, 255, 255, 0.02);
+
+  --modal-close-bg-hover: rgba(255, 255, 255, 0.05);
 }
 
 /* ─── Light theme — green palette ────────────────────────────────── */
@@ -143,6 +158,21 @@
 
     --error-bg: rgba(225, 29, 72, 0.08);
     --error-text: #9f1239;
+
+    /* Settings & Dropzone tokens */
+    --select-bg: rgba(255, 255, 255, 0.95);
+
+    --slider-bg: rgba(0, 0, 0, 0.1);
+    --slider-checked-border: rgba(22, 163, 74, 0.4);
+
+    --dropzone-bg: rgba(22, 163, 74, 0.02);
+    --dropzone-bg-hover: rgba(22, 163, 74, 0.05);
+    --dropzone-border: rgba(22, 163, 74, 0.3);
+
+    --file-list-bg: rgba(0, 0, 0, 0.03);
+    --file-item-bg-hover: rgba(22, 163, 74, 0.04);
+
+    --modal-close-bg-hover: rgba(0, 0, 0, 0.04);
   }
 }
 
@@ -599,7 +629,7 @@ button:disabled,
 }
 
 .modal-close-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--modal-close-bg-hover);
   color: var(--text-primary);
 }
 
@@ -621,7 +651,7 @@ button:disabled,
   padding: 0.75rem 1rem;
   font-family: inherit;
   font-size: 0.95rem;
-  background-color: rgba(15, 23, 42, 0.8);
+  background-color: var(--select-bg);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   color: var(--text-primary);
@@ -662,7 +692,7 @@ button:disabled,
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--slider-bg);
   border: 1px solid var(--border-color);
   transition: .3s;
   border-radius: 24px;
@@ -682,7 +712,7 @@ button:disabled,
 
 input:checked+.slider {
   background-color: var(--accent-indigo);
-  border-color: rgba(99, 102, 241, 0.4);
+  border-color: var(--slider-checked-border);
 }
 
 input:checked+.slider:before {
@@ -698,12 +728,12 @@ input:checked+.slider:before {
 
 /* Dropzone styling */
 .dropzone {
-  border: 2px dashed rgba(99, 102, 241, 0.3);
+  border: 2px dashed var(--dropzone-border);
   border-radius: var(--radius-md);
   padding: 2.5rem 1.5rem;
   text-align: center;
   cursor: pointer;
-  background: rgba(99, 102, 241, 0.02);
+  background: var(--dropzone-bg);
   transition: all 0.3s ease;
   margin-bottom: 1.5rem;
   display: flex;
@@ -713,7 +743,7 @@ input:checked+.slider:before {
 }
 
 .dropzone:hover {
-  background: rgba(99, 102, 241, 0.05);
+  background: var(--dropzone-bg-hover);
   border-color: var(--accent-indigo);
 }
 
@@ -737,7 +767,7 @@ input:checked+.slider:before {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 0.5rem;
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--file-list-bg);
 }
 
 .file-item {
@@ -750,7 +780,7 @@ input:checked+.slider:before {
 }
 
 .file-item:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--file-item-bg-hover);
 }
 
 .file-item .file-name {
@@ -955,7 +985,7 @@ tr:hover td {
 
 .badge-model {
   background: rgba(99, 102, 241, 0.15);
-  color: #a5b4fc;
+  color: #000000;
   padding: 0.1rem 0.4rem;
   border-radius: 4px;
   font-weight: 500;
