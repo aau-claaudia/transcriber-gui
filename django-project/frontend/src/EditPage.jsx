@@ -56,154 +56,159 @@ const EditPage = ({ transcriptionKey, transcriptionData, onBack, onOpenNotes }) 
     const hasMergedFiles = transcriptionData?.mergedFiles?.length > 0;
 
     return (
-        <div className="edit-page-layout">
-            {/* Left Column: Results Download */}
-            <div className="card-panel">
-                <div className="page-header">
+        <div className="edit-page" style={{ animation: 'fadeIn 0.4s ease-out' }}>
+            <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
                     <button className="btn btn-secondary" onClick={onBack}>
                         ← Back to Dashboard
                     </button>
-                    <h2>Transcription Results</h2>
                 </div>
-
-                <div style={{ marginBottom: '1.5rem' }}>
-                    <h3 style={{ fontFamily: 'Outfit', color: 'var(--text-primary)' }}>
-                        📄 {transcriptionKey}
-                    </h3>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                        Click on any format card below to download the transcribed file.
-                    </p>
-                </div>
-
-                {hasStandardFiles && (
-                    <div style={{ marginBottom: '2rem' }}>
-                        <h3>Standard Outputs</h3>
-                        <div className="download-grid">
-                            {transcriptionData.files.map((file, idx) => {
-                                const ext = getFileExtension(file.file_name);
-                                return (
-                                    <a
-                                        key={idx}
-                                        href={file.file_url}
-                                        className="download-btn-card"
-                                        title={getTitleForFileExtension(ext)}
-                                        download
-                                        rel="noreferrer"
-                                    >
-                                        <span className="ext-badge">{ext}</span>
-                                        <span className="ext-desc">{getTitleForFileExtension(ext).slice(0, 30)}...</span>
-                                    </a>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
-
-                {hasMergedFiles && (
-                    <div style={{ marginBottom: '2rem' }}>
-                        <h3>Merged Speaker Formats</h3>
-                        <div className="download-grid">
-                            {transcriptionData.mergedFiles.map((file, idx) => {
-                                const ext = getFileExtension(file.file_name);
-                                return (
-                                    <a
-                                        key={idx}
-                                        href={file.file_url}
-                                        className="download-btn-card"
-                                        title={getTitleForFileExtension(ext)}
-                                        download
-                                        rel="noreferrer"
-                                    >
-                                        <span className="ext-badge">{ext}</span>
-                                        <span className="ext-desc">{getTitleForFileExtension(ext).slice(0, 30)}...</span>
-                                    </a>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
-
-                {/* Log & Zip section in Edit Page for contextual convenience */}
-                {zipFile && (
-                    <div style={{
-                        marginTop: '2rem',
-                        padding: '1rem',
-                        background: 'rgba(255,255,255,0.01)',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--border-color)'
-                    }}>
-                        <h4 style={{ marginBottom: '0.5rem' }}>📦 Entire Output Archive</h4>
-                        <p style={{ fontSize: '0.85rem', marginBottom: '0.75rem' }}>Download a zip archive containing all
-                            format outputs for this transcription.</p>
-                        <a href={zipFile.file_url} className="btn btn-secondary" download>
-                            Download Zip File
-                        </a>
-                    </div>
-                )}
-                {logFiles && logFiles.length > 0 && (
-                    <div style={{
-                        marginTop: '2rem',
-                        padding: '1rem',
-                        background: 'rgba(255,255,255,0.01)',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--border-color)'
-                    }}>
-                        <h4 style={{ marginBottom: '0.5rem' }}>Log Files</h4>
-                        <p style={{ fontSize: '0.85rem', marginBottom: '0.75rem' }}>Download log files from the
-                            transcription proces.</p>
-                        {logFiles.map((file, idx) => {
-                            return (
-                                <a
-                                    style={{ marginRight: '1rem' }}
-                                    key={idx}
-                                    href={file.file_url} className="btn btn-secondary" download>
-                                    {file.file_name}
-                                </a>
-                            );
-                        })
-                        }
-                    </div>
-                )}
+                <h2 style={{ margin: 0, fontSize: '1.5rem' }}>Results: {transcriptionKey}</h2>
             </div>
 
-            {/* Right Column: Notes & Annotation System */}
-            <div className="card-panel">
-                <div className="notes-container">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <h2 style={{ marginTop: 0 }}>Notes & Annotation</h2>
-                        <button className="btn btn-primary" onClick={onOpenNotes}>
-                            📝 Edit Notes
-                        </button>
+            <div className="edit-page-layout">
+                {/* Left Column: Results Download */}
+                <div className="card-panel">
+                    <h3 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1.5rem' }}>
+                        🎙️ Transcription Results
+                    </h3>
+
+                    <div style={{ marginBottom: '1.5rem' }}>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                            Click on any format card below to download the transcribed file.
+                        </p>
                     </div>
-                    <p style={{ fontSize: '0.85rem', marginBottom: '1rem' }}>
-                        Notes are stored locally. Click "Handle Notes" above to add new corrective notes or markers.
-                    </p>
 
-                    <hr style={{ border: 'none', borderBottom: '1px solid var(--border-color)', margin: '1rem 0' }} />
-
-                    <h3>Saved Notes ({notes.length})</h3>
-                    <div className="notes-list">
-                        {notes.length === 0 ? (
-                            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '1rem' }}>
-                                No notes recorded yet.
-                            </p>
-                        ) : (
-                            notes.map(note => (
-                                <div className="note-item" key={note.id}>
-                                    <div className="note-header">
-                                        <span>📅 {note.timestamp}</span>
-                                        <button
-                                            className="note-delete-btn"
-                                            onClick={() => handleDeleteNote(note.id)}
-                                            title="Delete note"
+                    {hasStandardFiles && (
+                        <div style={{ marginBottom: '2rem' }}>
+                            <h3>Standard Outputs</h3>
+                            <div className="download-grid">
+                                {transcriptionData.files.map((file, idx) => {
+                                    const ext = getFileExtension(file.file_name);
+                                    return (
+                                        <a
+                                            key={idx}
+                                            href={file.file_url}
+                                            className="download-btn-card"
+                                            title={getTitleForFileExtension(ext)}
+                                            download
+                                            rel="noreferrer"
                                         >
-                                            🗑️
-                                        </button>
+                                            <span className="ext-badge">{ext}</span>
+                                            <span className="ext-desc">{getTitleForFileExtension(ext).slice(0, 30)}...</span>
+                                        </a>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {hasMergedFiles && (
+                        <div style={{ marginBottom: '2rem' }}>
+                            <h3>Merged Speaker Formats</h3>
+                            <div className="download-grid">
+                                {transcriptionData.mergedFiles.map((file, idx) => {
+                                    const ext = getFileExtension(file.file_name);
+                                    return (
+                                        <a
+                                            key={idx}
+                                            href={file.file_url}
+                                            className="download-btn-card"
+                                            title={getTitleForFileExtension(ext)}
+                                            download
+                                            rel="noreferrer"
+                                        >
+                                            <span className="ext-badge">{ext}</span>
+                                            <span className="ext-desc">{getTitleForFileExtension(ext).slice(0, 30)}...</span>
+                                        </a>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Log & Zip section in Edit Page for contextual convenience */}
+                    {zipFile && (
+                        <div style={{
+                            marginTop: '2rem',
+                            padding: '1rem',
+                            background: 'rgba(255,255,255,0.01)',
+                            borderRadius: 'var(--radius-md)',
+                            border: '1px solid var(--border-color)'
+                        }}>
+                            <h4 style={{ marginBottom: '0.5rem' }}>📦 Entire Output Archive</h4>
+                            <p style={{ fontSize: '0.85rem', marginBottom: '0.75rem' }}>Download a zip archive containing all
+                                format outputs for this transcription.</p>
+                            <a href={zipFile.file_url} className="btn btn-secondary" download>
+                                Download Zip File
+                            </a>
+                        </div>
+                    )}
+                    {logFiles && logFiles.length > 0 && (
+                        <div style={{
+                            marginTop: '2rem',
+                            padding: '1rem',
+                            background: 'rgba(255,255,255,0.01)',
+                            borderRadius: 'var(--radius-md)',
+                            border: '1px solid var(--border-color)'
+                        }}>
+                            <h4 style={{ marginBottom: '0.5rem' }}>Log Files</h4>
+                            <p style={{ fontSize: '0.85rem', marginBottom: '0.75rem' }}>Download log files from the
+                                transcription process.</p>
+                            {logFiles.map((file, idx) => {
+                                return (
+                                    <a
+                                        style={{ marginRight: '1rem' }}
+                                        key={idx}
+                                        href={file.file_url} className="btn btn-secondary" download>
+                                        {file.file_name}
+                                    </a>
+                                );
+                            })
+                            }
+                        </div>
+                    )}
+                </div>
+
+                {/* Right Column: Notes & Annotation System */}
+                <div className="card-panel">
+                    <div className="notes-container">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
+                            <h3 style={{ margin: 0 }}>📝 Notes & Annotation</h3>
+                            <button className="btn btn-primary" onClick={onOpenNotes} style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}>
+                                📝 Handle Notes
+                            </button>
+                        </div>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                            Notes are stored locally. Click "Handle Notes" above to add new corrective notes or markers.
+                        </p>
+
+                        <hr style={{ border: 'none', borderBottom: '1px solid var(--border-color)', margin: '1rem 0' }} />
+
+                        <h3>Saved Notes ({notes.length})</h3>
+                        <div className="notes-list">
+                            {notes.length === 0 ? (
+                                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '1rem' }}>
+                                    No notes recorded yet.
+                                </p>
+                            ) : (
+                                notes.map(note => (
+                                    <div className="note-item" key={note.id}>
+                                        <div className="note-header">
+                                            <span>📅 {note.timestamp}</span>
+                                            <button
+                                                className="note-delete-btn"
+                                                onClick={() => handleDeleteNote(note.id)}
+                                                title="Delete note"
+                                            >
+                                                🗑️
+                                            </button>
+                                        </div>
+                                        <div className="note-text">{note.text}</div>
                                     </div>
-                                    <div className="note-text">{note.text}</div>
-                                </div>
-                            ))
-                        )}
+                                ))
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
