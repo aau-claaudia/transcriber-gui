@@ -97,7 +97,7 @@ const SegmentCard = ({
     const handleSaveNote = () => {
         if (!correctiveText.trim()) return;
 
-        const formattedNote = `[${segment.startTime}][${segment.endTime}]:..${selectionState.text}..: ${correctiveText}`;
+        const formattedNote = `${segment.startTime} - ${segment.endTime}: ..${selectionState.text}.. -> ..${correctiveText}..`;
         onAddNote(formattedNote);
 
         setCorrectiveText('');
