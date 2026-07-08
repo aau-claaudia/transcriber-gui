@@ -211,6 +211,7 @@ def prepare_results(request):
                 # Read metadata.json if it exists
                 metadata_path = os.path.join(dir_path, 'data', 'metadata.json')
                 input_file_url = None
+                edit_file_url = None
                 if os.path.exists(metadata_path):
                     try:
                         with open(metadata_path, 'r') as f:
@@ -218,6 +219,9 @@ def prepare_results(request):
                             raw_url = meta_data.get('input_file_url')
                             if raw_url:
                                 input_file_url = request.build_absolute_uri(raw_url)
+                            raw_edit_url = meta_data.get('edit_file_url')
+                            if raw_edit_url:
+                                edit_file_url = request.build_absolute_uri(raw_edit_url)
                     except Exception as e:
                         logger.error(f"Error reading metadata.json in {dir_name}: {e}")
 
@@ -228,6 +232,9 @@ def prepare_results(request):
                         completed_files = [f for f in os.listdir(completed_dir) if os.path.isfile(os.path.join(completed_dir, f))]
                         if completed_files:
                             input_file_url = request.build_absolute_uri(f"{settings.MEDIA_URL}{dir_name}/COMPLETED/{completed_files[0]}")
+                # Fallback to default edit_file_url
+                if not edit_file_url:
+                    edit_file_url = request.build_absolute_uri(f"{settings.MEDIA_URL}{dir_name}/data/edited_output.json")
 
                 for filename in os.listdir(trans_dir):
                     file_path = os.path.join(trans_dir, filename)
@@ -242,7 +249,8 @@ def prepare_results(request):
                             'file_url': file_url,
                             'created_at': created_at,
                             'input_file_url': input_file_url,
-                            'dir_name': dir_name
+                            'dir_name': dir_name,
+                            'edit_file_url': edit_file_url
                         })
 
     responses.sort(key=lambda x: x['file_name'])

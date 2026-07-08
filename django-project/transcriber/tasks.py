@@ -61,14 +61,6 @@ def transcription_task(self, model_size, language):
             os.makedirs(comp_dir, exist_ok=True)
             os.makedirs(data_dir, exist_ok=True)
 
-            # Write metadata.json
-            metadata_content = {
-                "input_file_name": filename,
-                "input_file_url": f"/media/{transcription_key}/COMPLETED/{filename}"
-            }
-            metadata_file = os.path.join(data_dir, 'metadata.json')
-            with open(metadata_file, 'w') as mf:
-                json.dump(metadata_content, mf, indent=4)
 
             # Move the input file from UPLOADS/INPUT to the COMPLETED folder in the new directory
             src_file = os.path.join(directory_path, filename)
@@ -88,6 +80,30 @@ def transcription_task(self, model_size, language):
                 src_path = os.path.join(output_dir_path, file_to_copy)
                 if os.path.exists(src_path):
                     shutil.copy(src_path, os.path.join(trans_dir, file_to_copy))
+
+            # Copy .dote.json to /data/edited_output.json
+            edit_file_name = "edited_output.json"
+            edited_output_file = os.path.join(data_dir, edit_file_name)
+            dote_file = next(
+                (
+                    os.path.join(trans_dir, item)
+                    for item in os.listdir(trans_dir)
+                    if item.endswith(".dote.json")
+                ),
+                None,
+            )
+            if os.path.exists(src_path):
+                shutil.copy(dote_file, edited_output_file)
+
+            # Write metadata.json
+            metadata_content = {
+                "input_file_name": filename,
+                "input_file_url": f"/media/{transcription_key}/COMPLETED/{filename}",
+                "edit_file_url": f"/media/{transcription_key}/data/{edit_file_name}",
+            }
+            metadata_file = os.path.join(data_dir, 'metadata.json')
+            with open(metadata_file, 'w') as mf:
+                json.dump(metadata_content, mf, indent=4)
 
     except subprocess.CalledProcessError as e:
         write_transcriber_output(e.stderr, e.stdout, transcriber_output_file, directory_path, model_size)

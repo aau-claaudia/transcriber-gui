@@ -186,7 +186,8 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
     }, [segments]);
 
     // Get .dote.json file from transcriptionData files
-    const doteFile = transcriptionData?.files?.find(f => f.file_name.endsWith('.dote.json'));
+    const doteFileUrl = transcriptionData?.editFileUrl ??
+        transcriptionData?.files?.find((f) => f.file_name.endsWith(".dote.json"))?.file_url;
 
     // method for creating relative links from the file URLs
     const toRelativeFetchUrl = (fileUrl) => {
@@ -274,7 +275,7 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
 
     // Fetch transcription segments from dote.json
     useEffect(() => {
-        if (!doteFile) {
+        if (!doteFileUrl) {
             setSegments([]);
             setLoadingSegments(false);
             setErrorSegments('No .dote.json file found for this transcription run.');
@@ -284,7 +285,7 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
         setLoadingSegments(true);
         setErrorSegments(null);
 
-        fetch(toRelativeFetchUrl(doteFile.file_url))
+        fetch(toRelativeFetchUrl(doteFileUrl))
             .then(res => {
                 if (!res.ok) {
                     throw new Error(`Failed to load dote.json: ${res.statusText}`);
@@ -305,7 +306,7 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                 setErrorSegments('Could not load transcription segments from the server.');
                 setLoadingSegments(false);
             });
-    }, [doteFile?.file_url]);
+    }, [doteFileUrl]);
 
     // Refs so that event listeners always see current values without being recreated
     const activeSegmentIdRef = useRef(null);

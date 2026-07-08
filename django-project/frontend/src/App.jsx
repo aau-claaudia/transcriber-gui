@@ -317,7 +317,8 @@ function App() {
                 mergedFiles: [],
                 logFiles: [],
                 zipFile: null,
-                inputFileUrl: result.input_file_url
+                inputFileUrl: result.input_file_url,
+                editFileUrl: result.edit_file_url
             };
         }
 
