@@ -80,10 +80,19 @@ const SegmentCard = ({
                          currentTimeBySegment,
                          onToggleSegment,
                          onSeekSegment,
-                         onAddNote
+                         onAddNote,
+                         editMode,
+                         onUpdateSegmentText,
+                         onUpdateSpeaker
                      }) => {
     const [selectionState, setSelectionState] = useState({ text: '', isOpen: false });
     const [correctiveText, setCorrectiveText] = useState('');
+    const [isEditingSpeaker, setIsEditingSpeaker] = useState(false);
+    const [newSpeakerName, setNewSpeakerName] = useState(segment.speakerDesignation);
+
+    useEffect(() => {
+        setNewSpeakerName(segment.speakerDesignation);
+    }, [segment.speakerDesignation]);
 
     const handleTextSelection = (e) => {
         const selection = window.getSelection();
@@ -104,6 +113,16 @@ const SegmentCard = ({
         setSelectionState({ text: '', isOpen: false });
     };
 
+    const handleApplyEdit = () => {
+        if (!correctiveText.trim()) return;
+
+        const updatedText = segment.text.replace(selectionState.text, correctiveText);
+        onUpdateSegmentText(segmentId, updatedText);
+
+        setCorrectiveText('');
+        setSelectionState({ text: '', isOpen: false });
+    };
+
     const handleCancel = () => {
         setCorrectiveText('');
         setSelectionState({ text: '', isOpen: false });
@@ -111,9 +130,66 @@ const SegmentCard = ({
 
     return (
         <div className="segment-card">
-            <div className="segment-header">
-                <span className="speaker-badge">👤 {segment.speakerDesignation}</span>
-                <span className="time-badge">⏱️ {segment.startTime} - {segment.endTime}</span>
+            <div className="segment-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                {isEditingSpeaker ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'var(--selection-form-bg)', border: '1px solid var(--selection-form-border)', padding: '0.75rem', borderRadius: 'var(--radius-md)', width: '100%' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>Rename Speaker:</span>
+                            <input
+                                type="text"
+                                className="note-input-field"
+                                value={newSpeakerName}
+                                onChange={(e) => setNewSpeakerName(e.target.value)}
+                                style={{ flex: 1, padding: '0.3rem 0.6rem', fontSize: '0.85rem', background: 'var(--note-input-bg)', border: '1px solid var(--note-input-border)', borderRadius: 'var(--radius-sm)', color: 'var(--note-input-text)' }}
+                                autoFocus
+                            />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                            <button
+                                className="btn btn-secondary"
+                                onClick={() => {
+                                    setIsEditingSpeaker(false);
+                                    setNewSpeakerName(segment.speakerDesignation);
+                                }}
+                                style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="btn btn-secondary"
+                                onClick={() => {
+                                    onUpdateSpeaker(segment.speakerDesignation, newSpeakerName, false, segmentId);
+                                    setIsEditingSpeaker(false);
+                                }}
+                                style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+                            >
+                                This Segment Only
+                            </button>
+                            <button
+                                className="btn btn-primary"
+                                onClick={() => {
+                                    onUpdateSpeaker(segment.speakerDesignation, newSpeakerName, true, segmentId);
+                                    setIsEditingSpeaker(false);
+                                }}
+                                style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+                            >
+                                All Segments
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        <span
+                            className="speaker-badge"
+                            style={{ cursor: editMode ? 'pointer' : 'default' }}
+                            onClick={() => { if (editMode) setIsEditingSpeaker(true); }}
+                            title={editMode ? "Click to rename speaker" : ""}
+                        >
+                            👤 {segment.speakerDesignation} {editMode && <span style={{ fontSize: '0.75rem', opacity: 0.8, marginLeft: '0.25rem' }}>✏️</span>}
+                        </span>
+                        <span className="time-badge">⏱️ {segment.startTime} - {segment.endTime}</span>
+                    </>
+                )}
             </div>
 
             <SegmentAudioPlayer
@@ -143,7 +219,7 @@ const SegmentCard = ({
                     <input
                         type="text"
                         className="note-input-field"
-                        placeholder="Enter corrective note / comments..."
+                        placeholder={editMode ? "Enter replacement text..." : "Enter corrective note / comments..."}
                         value={correctiveText}
                         onChange={(e) => setCorrectiveText(e.target.value)}
                         autoFocus
@@ -152,8 +228,12 @@ const SegmentCard = ({
                         <button className="btn btn-secondary" onClick={handleCancel} style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}>
                             Cancel
                         </button>
-                        <button className="btn btn-primary" onClick={handleSaveNote} style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}>
-                            Save Note
+                        <button
+                            className="btn btn-primary"
+                            onClick={editMode ? handleApplyEdit : handleSaveNote}
+                            style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}
+                        >
+                            {editMode ? 'Apply Edit' : 'Save Note'}
                         </button>
                     </div>
                 </div>
@@ -167,6 +247,75 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
     const [segments, setSegments] = useState([]);
     const [loadingSegments, setLoadingSegments] = useState(true);
     const [errorSegments, setErrorSegments] = useState(null);
+    const [editMode, setEditMode] = useState(false);
+
+    const sendEditUpdateToBackend = (editPayload) => {
+        console.debug("Sending edit update to backend:", editPayload);
+        const dirName = transcriptionData?.name;
+        if (!dirName) return;
+
+        fetch('/edit-transcription-segment/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                dir_name: dirName,
+                payload: editPayload
+            })
+        })
+            .then(res => {
+                if (!res.ok) {
+                    console.warn("Backend edit request returned status:", res.status);
+                } else {
+                    return res.json();
+                }
+            })
+            .then(data => {
+                if (data) {
+                    console.debug("Edit successfully saved on backend:", data);
+                }
+            })
+            .catch(err => {
+                console.error("Failed to save edit on backend:", err);
+            });
+    };
+
+    const handleUpdateSegmentText = (segmentId, newText) => {
+        setSegments(prev => prev.map((seg, idx) => {
+            if (idx === segmentId) {
+                return { ...seg, text: newText };
+            }
+            return seg;
+        }));
+
+        sendEditUpdateToBackend({
+            type: 'text_edit',
+            segmentId,
+            newText
+        });
+    };
+
+    const handleUpdateSpeaker = (oldName, newName, updateAll, segmentId) => {
+        setSegments(prev => prev.map((seg, idx) => {
+            if (updateAll) {
+                if (seg.speakerDesignation === oldName) {
+                    return { ...seg, speakerDesignation: newName };
+                }
+            } else {
+                if (idx === segmentId) {
+                    return { ...seg, speakerDesignation: newName };
+                }
+            }
+            return seg;
+        }));
+
+        sendEditUpdateToBackend({
+            type: 'speaker_edit',
+            oldName,
+            newName,
+            updateAll,
+            segmentId
+        });
+    };
 
     // Audio URL state — may be updated after server-side conversion
     const [audioUrl, setAudioUrl] = useState(transcriptionData?.inputFileUrl ?? null);
@@ -452,16 +601,32 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                         ← Back to Results Page
                     </button>
                 </div>
-                <h2 style={{ margin: 0, fontSize: '1.5rem' }}>Annotating: {transcriptionKey}</h2>
+                <h2 style={{ margin: 0, fontSize: '1.5rem' }}>{editMode ? 'Editing' : 'Annotating'}: {transcriptionKey}</h2>
             </div>
 
             <div className="notes-page-layout">
                 <div className="card-panel" style={{ position: 'relative' }}>
-                    <h3 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
-                        🎙️ Transcription Segments
-                    </h3>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
+                        <h3 style={{ margin: 0 }}>
+                            🎙️ Transcription Segments
+                        </h3>
+                        <div className="toggle-container" style={{ margin: 0, gap: '0.5rem' }}>
+                            <span className="toggle-label" style={{ fontSize: '0.85rem' }}>Edit Mode</span>
+                            <label className="toggle-switch">
+                                <input
+                                    type="checkbox"
+                                    checked={editMode}
+                                    onChange={(e) => setEditMode(e.target.checked)}
+                                />
+                                <span className="slider"></span>
+                            </label>
+                        </div>
+                    </div>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                        To take a corrective note, highlight any text within a segment. Use the audio controls next to each segment to verify speaker pronunciation.
+                        {
+                            editMode ? "To edit the transcription output, highlight any text within a segment. Use the audio controls next to each segment to verify speaker pronunciation."
+                            : "To take a corrective note, highlight any text within a segment. Use the audio controls next to each segment to verify speaker pronunciation."
+                        }
                     </p>
 
                     {/* Audio conversion loading overlay */}
@@ -546,6 +711,9 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                                     onToggleSegment={handleToggleSegment}
                                     onSeekSegment={handleSeekSegment}
                                     onAddNote={handleAddNote}
+                                    editMode={editMode}
+                                    onUpdateSegmentText={handleUpdateSegmentText}
+                                    onUpdateSpeaker={handleUpdateSpeaker}
                                 />
                             ))}
                         </div>
