@@ -94,13 +94,9 @@ const SegmentCard = ({
         setNewSpeakerName(segment.speakerDesignation);
     }, [segment.speakerDesignation]);
 
-    const handleTextSelection = (e) => {
-        const selection = window.getSelection();
-        const selectedText = selection?.toString().trim();
-
-        if (selectedText && e.currentTarget.contains(selection.anchorNode)) {
-            setSelectionState({ text: selectedText, isOpen: true });
-        }
+    const handleSegmentTextClick = () => {
+        setSelectionState({ text: segment.text, isOpen: true });
+        setCorrectiveText(segment.text);
     };
 
     const handleSaveNote = () => {
@@ -116,8 +112,7 @@ const SegmentCard = ({
     const handleApplyEdit = () => {
         if (!correctiveText.trim()) return;
 
-        const updatedText = segment.text.replace(selectionState.text, correctiveText);
-        onUpdateSegmentText(segmentId, updatedText);
+        onUpdateSegmentText(segmentId, correctiveText);
 
         setCorrectiveText('');
         setSelectionState({ text: '', isOpen: false });
@@ -126,6 +121,13 @@ const SegmentCard = ({
     const handleCancel = () => {
         setCorrectiveText('');
         setSelectionState({ text: '', isOpen: false });
+    };
+
+    const handleCorrectiveInputKeyDown = (e) => {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            handleCancel();
+        }
     };
 
     return (
@@ -205,8 +207,8 @@ const SegmentCard = ({
 
             <div
                 className="segment-text"
-                onMouseUp={handleTextSelection}
-                title="Highlight text to add corrective note"
+                onClick={handleSegmentTextClick}
+                title="Click text to edit or annotate this segment"
             >
                 {segment.text}
             </div>
@@ -214,7 +216,7 @@ const SegmentCard = ({
             {selectionState.isOpen && (
                 <div className="segment-selection-form">
                     <div className="selected-text-preview">
-                        Highlight: "<strong>{selectionState.text}</strong>"
+                        Current text: "<strong>{selectionState.text}</strong>"
                     </div>
                     <input
                         type="text"
@@ -222,6 +224,7 @@ const SegmentCard = ({
                         placeholder={editMode ? "Enter replacement text..." : "Enter corrective note / comments..."}
                         value={correctiveText}
                         onChange={(e) => setCorrectiveText(e.target.value)}
+                        onKeyDown={handleCorrectiveInputKeyDown}
                         autoFocus
                     />
                     <div className="form-actions">
@@ -624,8 +627,8 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                     </div>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
                         {
-                            editMode ? "To edit the transcription output, highlight any text within a segment. Use the audio controls next to each segment to verify speaker pronunciation."
-                            : "To take a corrective note, highlight any text within a segment. Use the audio controls next to each segment to verify speaker pronunciation."
+                            editMode ? "To edit the transcription output, click any segment text to open a prefilled input. Use the audio controls next to each segment to verify speaker pronunciation."
+                                : "To add a corrective note, click any segment text to open a prefilled input. Use the audio controls next to each segment to verify speaker pronunciation."
                         }
                     </p>
 
