@@ -450,6 +450,140 @@ def convert_audio(request):
     new_abs_url = request.build_absolute_uri(output_media_url)
     return JsonResponse({'status': 'converted', 'input_file_url': new_abs_url})
 
+@csrf_exempt
+def edit_transcription_segment(request):
+    """
+    POST endpoint: update segment text and speaker
+    Called when editing notes for updating the edited output file
+    Expected JSON body:
+        { "dir_name": "<transcription dir>", "payload": "<update object>" }
+    Returns:
+        { status, type, dirName, editFileUrl }
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, AttributeError):
+        return JsonResponse({'error': 'Invalid JSON body'}, status=400)
+
+    dir_name = str(body.get('dir_name', '')).strip()
+    payload = body.get('payload')
+
+    if not dir_name:
+        return JsonResponse({'error': 'dir_name is required'}, status=400)
+    if not isinstance(payload, dict):
+        return JsonResponse({'error': 'payload must be an object'}, status=400)
+
+    data_dir = os.path.join(settings.MEDIA_ROOT, dir_name, 'data')
+    metadata_path = os.path.join(data_dir, 'metadata.json')
+
+    if not os.path.exists(metadata_path):
+        return JsonResponse({'error': 'metadata.json not found for this transcription'}, status=404)
+
+    try:
+        with open(metadata_path, 'r') as f:
+            metadata = json.load(f)
+    except Exception as e:
+        logger.error(f"edit_transcription_segment: failed to read metadata for '{dir_name}': {e}")
+        return JsonResponse({'error': 'Could not read metadata.json'}, status=500)
+
+    edit_file_url = metadata.get('edit_file_url')
+    if not edit_file_url:
+        return JsonResponse({'error': 'edit_file_url missing in metadata.json'}, status=400)
+
+    # Resolve metadata edit_file_url to a filesystem path.
+    parsed_path = edit_file_url
+    if '://' in parsed_path:
+        from urllib.parse import urlparse
+        parsed_path = urlparse(parsed_path).path
+
+    if settings.MEDIA_URL and parsed_path.startswith(settings.MEDIA_URL):
+        relative_path = parsed_path[len(settings.MEDIA_URL):].lstrip('/')
+        edit_file_path = os.path.join(settings.MEDIA_ROOT, relative_path)
+    elif parsed_path.startswith('/work/'):
+        edit_file_path = parsed_path
+    else:
+        edit_file_path = os.path.join(settings.MEDIA_ROOT, parsed_path.lstrip('/'))
+
+    if not os.path.exists(edit_file_path):
+        return JsonResponse({'error': 'Target edit file not found'}, status=404)
+
+    try:
+        with open(edit_file_path, 'r') as f:
+            edited_output = json.load(f)
+    except Exception as e:
+        logger.error(f"edit_transcription_segment: failed to read edit file '{edit_file_path}': {e}")
+        return JsonResponse({'error': 'Could not read target edit file'}, status=500)
+
+    lines = edited_output.get('lines')
+    if not isinstance(lines, list):
+        return JsonResponse({'error': "Target edit file format invalid (missing 'lines' array)"}, status=400)
+
+    edit_type = payload.get('type')
+
+    if edit_type == 'text_edit':
+        segment_id = payload.get('segmentId')
+        new_text = payload.get('newText')
+
+        if not isinstance(segment_id, int) or segment_id < 0 or segment_id >= len(lines):
+            return JsonResponse({'error': 'Invalid segmentId for text_edit'}, status=400)
+        if not isinstance(new_text, str):
+            return JsonResponse({'error': 'newText must be a string'}, status=400)
+
+        if not isinstance(lines[segment_id], dict):
+            return JsonResponse({'error': 'Segment entry has invalid structure'}, status=400)
+
+        lines[segment_id]['text'] = new_text
+
+    elif edit_type == 'speaker_edit':
+        old_name = payload.get('oldName')
+        new_name = payload.get('newName')
+        update_all = payload.get('updateAll')
+        segment_id = payload.get('segmentId')
+
+        if not isinstance(old_name, str) or not isinstance(new_name, str):
+            return JsonResponse({'error': 'oldName and newName must be strings'}, status=400)
+        if not isinstance(update_all, bool):
+            return JsonResponse({'error': 'updateAll must be a boolean'}, status=400)
+
+        updates = 0
+        if update_all:
+            for line in lines:
+                if isinstance(line, dict) and line.get('speakerDesignation') == old_name:
+                    line['speakerDesignation'] = new_name
+                    updates += 1
+        else:
+            if not isinstance(segment_id, int) or segment_id < 0 or segment_id >= len(lines):
+                return JsonResponse({'error': 'Invalid segmentId for speaker_edit'}, status=400)
+            if not isinstance(lines[segment_id], dict):
+                return JsonResponse({'error': 'Segment entry has invalid structure'}, status=400)
+
+            lines[segment_id]['speakerDesignation'] = new_name
+            updates = 1
+
+        if updates == 0:
+            logger.info(
+                f"edit_transcription_segment: speaker_edit made no changes for dir='{dir_name}', "
+                f"old_name='{old_name}', update_all={update_all}"
+            )
+    else:
+        return JsonResponse({'error': 'Unsupported payload type'}, status=400)
+
+    try:
+        with open(edit_file_path, 'w') as f:
+            json.dump(edited_output, f, indent=2)
+    except Exception as e:
+        logger.error(f"edit_transcription_segment: failed to write edit file '{edit_file_path}': {e}")
+        return JsonResponse({'error': 'Failed to write target edit file'}, status=500)
+
+    return JsonResponse({
+        'status': 'ok',
+        'type': edit_type,
+        'dir_name': dir_name,
+        'edit_file_url': edit_file_url
+    })
 
 def convert_to_mp3(input_file, output_file):
     """

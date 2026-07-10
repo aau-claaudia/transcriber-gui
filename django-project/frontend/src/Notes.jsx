@@ -705,8 +705,8 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                         <div className="segment-list">
                             {segments.map((segment, idx) => (
                                 <SegmentCard
-                                    key={idx}
-                                    segmentId={idx}
+                                    key={segment.id}
+                                    segmentId={segment.id}
                                     segment={segment}
                                     audioUrl={audioUrl}
                                     activeSegmentId={activeSegmentId}
