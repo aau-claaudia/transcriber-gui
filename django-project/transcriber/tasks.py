@@ -88,12 +88,14 @@ def transcription_task(self, model_size, language):
                 (
                     os.path.join(trans_dir, item)
                     for item in os.listdir(trans_dir)
-                    if item.endswith(".dote.json")
+                    if item.endswith(".dote.json") and not item.endswith("_merged.dote.json")
                 ),
                 None,
             )
             if os.path.exists(src_path):
                 shutil.copy(dote_file, edited_output_file)
+            # annotate output file for editing with ids
+            annotate_with_ids(edited_output_file)
 
             # Write metadata.json
             metadata_content = {
@@ -167,3 +169,17 @@ def clean_dir(directory):
         if os.path.isfile(source_path):
             os.remove(source_path)
             #logging.debug(f"Removed file: {source_path}")
+
+def annotate_with_ids(file_path):
+    try:
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+
+        for i, line in enumerate(data.get('lines', [])):
+            data['lines'][i] = {'id': i, **line}
+
+        with open(file_path, 'w') as f:
+            json.dump(data, f, indent=2)
+
+    except Exception as e:
+        logger.error(f"Error when creating IDs for output file for editing '{file_path}': {e}")
