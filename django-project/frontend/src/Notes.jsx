@@ -252,12 +252,22 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
     const [errorSegments, setErrorSegments] = useState(null);
     const [editMode, setEditMode] = useState(false);
 
+    // 'idle' | 'saving' | 'error'
+    const [saveStatus, setSaveStatus] = useState('idle');
+    const [saveError, setSaveError] = useState(null);
+
+    // Returns a Promise that resolves on success and rejects on any failure.
     const sendEditUpdateToBackend = (editPayload) => {
         console.debug("Sending edit update to backend:", editPayload);
         const dirName = transcriptionData?.name;
-        if (!dirName) return;
+        if (!dirName) {
+            return Promise.reject(new Error('No transcription directory name available.'));
+        }
 
-        fetch('/edit-transcription-segment/', {
+        setSaveStatus('saving');
+        setSaveError(null);
+
+        return fetch('/edit-transcription-segment/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -267,22 +277,20 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
         })
             .then(res => {
                 if (!res.ok) {
-                    console.warn("Backend edit request returned status:", res.status);
-                } else {
-                    return res.json();
+                    throw new Error(`Server returned ${res.status} ${res.statusText}`);
                 }
+                return res.json();
             })
             .then(data => {
-                if (data) {
-                    console.debug("Edit successfully saved on backend:", data);
-                }
-            })
-            .catch(err => {
-                console.error("Failed to save edit on backend:", err);
+                console.debug("Edit successfully saved on backend:", data);
+                setSaveStatus('idle');
             });
     };
 
     const handleUpdateSegmentText = (segmentId, newText) => {
+        // Snapshot state before the optimistic update so we can roll back on error
+        const previousSegments = segments;
+
         setSegments(prev => prev.map((seg, idx) => {
             if (idx === segmentId) {
                 return { ...seg, text: newText };
@@ -294,10 +302,19 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
             type: 'text_edit',
             segmentId,
             newText
+        }).catch(err => {
+            console.error("Failed to save text edit on backend:", err);
+            // Roll back optimistic update so the UI reflects the real state
+            setSegments(previousSegments);
+            setSaveStatus('error');
+            setSaveError('Could not save the text edit. Please check your connection and try again.');
         });
     };
 
     const handleUpdateSpeaker = (oldName, newName, updateAll, segmentId) => {
+        // Snapshot state before the optimistic update so we can roll back on error
+        const previousSegments = segments;
+
         setSegments(prev => prev.map((seg, idx) => {
             if (updateAll) {
                 if (seg.speakerDesignation === oldName) {
@@ -317,6 +334,12 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
             newName,
             updateAll,
             segmentId
+        }).catch(err => {
+            console.error("Failed to save speaker edit on backend:", err);
+            // Roll back optimistic update so the UI reflects the real state
+            setSegments(previousSegments);
+            setSaveStatus('error');
+            setSaveError('Could not save the speaker rename. Please check your connection and try again.');
         });
     };
 
@@ -680,6 +703,82 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                                     animation: 'shimmer 1.4s ease-in-out infinite',
                                 }} />
                             </div>
+                        </div>
+                    )}
+
+                    {/* Edit save in-progress overlay — shown while waiting for backend to confirm */}
+                    {saveStatus === 'saving' && (
+                        <div style={{
+                            position: 'absolute',
+                            inset: 0,
+                            borderRadius: 'var(--radius-lg, 12px)',
+                            background: 'var(--overlay-bg)',
+                            backdropFilter: 'blur(4px)',
+                            WebkitBackdropFilter: 'blur(4px)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.75rem',
+                            zIndex: 10,
+                            pointerEvents: 'none',
+                        }}>
+                            <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                                💾 Saving edit…
+                            </p>
+                            {/* Shimmer bar */}
+                            <div style={{
+                                width: '160px',
+                                height: '4px',
+                                borderRadius: '2px',
+                                background: 'var(--shimmer-bg)',
+                                overflow: 'hidden',
+                            }}>
+                                <div style={{
+                                    height: '100%',
+                                    width: '40%',
+                                    borderRadius: '2px',
+                                    background: 'linear-gradient(90deg, transparent, var(--accent-violet), transparent)',
+                                    animation: 'shimmer 1.4s ease-in-out infinite',
+                                }} />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Edit save error banner — shown when backend rejected or did not respond */}
+                    {saveStatus === 'error' && saveError && (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '0.75rem',
+                            padding: '0.75rem 1rem',
+                            marginBottom: '1rem',
+                            background: 'var(--error-bg)',
+                            border: '1px solid var(--accent-rose)',
+                            borderRadius: 'var(--radius-md)',
+                            color: 'var(--error-text)',
+                            fontSize: '0.875rem',
+                        }}>
+                            <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>⚠️</span>
+                            <div style={{ flex: 1 }}>
+                                <strong>Save failed.</strong> {saveError}
+                            </div>
+                            <button
+                                onClick={() => { setSaveStatus('idle'); setSaveError(null); }}
+                                title="Dismiss"
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    color: 'var(--error-text)',
+                                    fontSize: '1rem',
+                                    lineHeight: 1,
+                                    padding: '0',
+                                    flexShrink: 0,
+                                }}
+                            >
+                                ✕
+                            </button>
                         </div>
                     )}
 
