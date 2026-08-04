@@ -54,6 +54,21 @@ export default defineConfig({
                 changeOrigin: true,
                 secure: false,
             },
+            '/get-notes': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false,
+            },
+            '/save-note': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false,
+            },
+            '/delete-note': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false,
+            },
             // Proxy media file requests to the Django/Daphne server.
             // Match any URL that contains '/media/'
             '^.*(/media/.*)$': {

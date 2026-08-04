@@ -18,7 +18,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, re_path
-from transcriber.views import FileUploadView, poll_transcription_status, stop_transcription_task, index, serve_file, get_initialization_data, LinkFilesView, RemoveLinkView, get_completed_transcriptions, convert_audio, edit_transcription_segment
+from transcriber.views import FileUploadView, poll_transcription_status, stop_transcription_task, index, serve_file, get_initialization_data, LinkFilesView, RemoveLinkView, get_completed_transcriptions, convert_audio, edit_transcription_segment, get_notes, save_note, delete_note
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -28,6 +28,9 @@ urlpatterns = [
     path('get-completed-transcriptions/', get_completed_transcriptions, name='get_completed_transcriptions'),
     path('convert-audio/', convert_audio, name='convert_audio'),
     path('edit-transcription-segment/', edit_transcription_segment, name='edit_transcription_segment'),
+    path('get-notes/', get_notes, name='get_notes'),
+    path('save-note/', save_note, name='save_note'),
+    path('delete-note/', delete_note, name='delete_note'),
     path('get-initialization-data/', get_initialization_data, name='get_initialization_data'),
     path('link-files/', LinkFilesView.as_view(), name='link_files'),
     path('remove-link/', RemoveLinkView.as_view(), name='remove_link'),

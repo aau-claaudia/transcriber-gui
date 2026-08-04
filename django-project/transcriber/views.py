@@ -6,6 +6,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from .serializers import FileUploadSerializer, MultipleFileUploadSerializer, MultipleFileMetaDataSerializer
 import os
 import json
+from datetime import datetime, timezone
 from django.http import JsonResponse, HttpResponse, Http404
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView
@@ -584,6 +585,135 @@ def edit_transcription_segment(request):
         'dir_name': dir_name,
         'edit_file_url': edit_file_url
     })
+
+def _read_notes_file(notes_path):
+    """Return the parsed notes dict, or a blank one if the file doesn't exist."""
+    if not os.path.exists(notes_path):
+        return {'notes': []}
+    try:
+        with open(notes_path, 'r') as f:
+            return json.load(f)
+    except Exception:
+        return {'notes': []}
+
+
+def _write_notes_file(notes_path, data):
+    """Write the notes dict back to disk with pretty formatting."""
+    with open(notes_path, 'w') as f:
+        json.dump(data, f, indent=2)
+
+
+def get_notes(request):
+    """
+    GET /get-notes/?dir_name=<str>
+    Returns all notes for the transcription, sorted by date ascending.
+    Response: { "notes": [ { "id", "date", "note" }, … ] }
+    """
+    dir_name = request.GET.get('dir_name', '').strip()
+    if not dir_name:
+        return JsonResponse({'error': 'dir_name query parameter is required'}, status=400)
+
+    notes_path = os.path.join(settings.MEDIA_ROOT, dir_name, 'data', 'notes.json')
+    data = _read_notes_file(notes_path)
+    notes = data.get('notes', [])
+
+    # Sort ascending by date (ISO strings sort correctly lexicographically)
+    notes_sorted = sorted(notes, key=lambda n: n.get('date', ''))
+    return JsonResponse({'notes': notes_sorted})
+
+
+@csrf_exempt
+def save_note(request):
+    """
+    POST /save-note/
+    Body: { "dir_name": "<str>", "note": "<str>" }
+    Creates <MEDIA_ROOT>/<dir_name>/data/notes.json if it does not exist.
+    Appends a new note object with an auto-incremented id and an ISO-8601 UTC date.
+    Response: { "status": "ok", "note": { "id": <int>, "date": "<iso>", "note": "<str>" } }
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, AttributeError):
+        return JsonResponse({'error': 'Invalid JSON body'}, status=400)
+
+    dir_name = str(body.get('dir_name', '')).strip()
+    note_text = body.get('note')
+
+    if not dir_name:
+        return JsonResponse({'error': 'dir_name is required'}, status=400)
+    if not isinstance(note_text, str) or not note_text.strip():
+        return JsonResponse({'error': 'note must be a non-empty string'}, status=400)
+
+    data_dir = os.path.join(settings.MEDIA_ROOT, dir_name, 'data')
+    os.makedirs(data_dir, exist_ok=True)
+    notes_path = os.path.join(data_dir, 'notes.json')
+
+    try:
+        data = _read_notes_file(notes_path)
+        notes = data.get('notes', [])
+
+        next_id = (max(n['id'] for n in notes if isinstance(n.get('id'), int)) + 1) if notes else 1
+        new_note = {
+            'id': next_id,
+            'date': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.') +
+                    f"{datetime.now(timezone.utc).microsecond // 1000:03d}Z",
+            'note': note_text.strip()
+        }
+        notes.append(new_note)
+        data['notes'] = notes
+        _write_notes_file(notes_path, data)
+    except Exception as e:
+        logger.error(f"save_note: failed to write notes for '{dir_name}': {e}")
+        return JsonResponse({'error': 'Failed to save note'}, status=500)
+
+    return JsonResponse({'status': 'ok', 'note': new_note})
+
+
+@csrf_exempt
+def delete_note(request):
+    """
+    POST /delete-note/
+    Body: { "dir_name": "<str>", "note_id": <int> }
+    Removes the note with the matching id from notes.json.
+    Response: { "status": "ok", "deleted_id": <int> }
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, AttributeError):
+        return JsonResponse({'error': 'Invalid JSON body'}, status=400)
+
+    dir_name = str(body.get('dir_name', '')).strip()
+    note_id = body.get('note_id')
+
+    if not dir_name:
+        return JsonResponse({'error': 'dir_name is required'}, status=400)
+    if not isinstance(note_id, int):
+        return JsonResponse({'error': 'note_id must be an integer'}, status=400)
+
+    notes_path = os.path.join(settings.MEDIA_ROOT, dir_name, 'data', 'notes.json')
+
+    if not os.path.exists(notes_path):
+        return JsonResponse({'error': 'notes.json not found for this transcription'}, status=404)
+
+    try:
+        data = _read_notes_file(notes_path)
+        original_count = len(data.get('notes', []))
+        data['notes'] = [n for n in data.get('notes', []) if n.get('id') != note_id]
+        if len(data['notes']) == original_count:
+            logger.warning(f"delete_note: note_id={note_id} not found in '{dir_name}'")
+        _write_notes_file(notes_path, data)
+    except Exception as e:
+        logger.error(f"delete_note: failed to update notes for '{dir_name}': {e}")
+        return JsonResponse({'error': 'Failed to delete note'}, status=500)
+
+    return JsonResponse({'status': 'ok', 'deleted_id': note_id})
+
 
 def convert_to_mp3(input_file, output_file):
     """

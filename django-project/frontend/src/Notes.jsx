@@ -102,7 +102,7 @@ const SegmentCard = ({
     const handleSaveNote = () => {
         if (!correctiveText.trim()) return;
 
-        const formattedNote = `${segment.startTime} - ${segment.endTime}: ..${selectionState.text}.. -> ..${correctiveText}..`;
+        const formattedNote = `${segment.startTime} - ${segment.endTime}: ${selectionState.text} -> ${correctiveText}`;
         onAddNote(formattedNote);
 
         setCorrectiveText('');
@@ -252,9 +252,13 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
     const [errorSegments, setErrorSegments] = useState(null);
     const [editMode, setEditMode] = useState(false);
 
-    // 'idle' | 'saving' | 'error'
+    // Segment-panel save status: 'idle' | 'saving' | 'error'
     const [saveStatus, setSaveStatus] = useState('idle');
     const [saveError, setSaveError] = useState(null);
+
+    // Notes-panel save status: 'idle' | 'saving' | 'error'
+    const [noteSaveStatus, setNoteSaveStatus] = useState('idle');
+    const [noteSaveError, setNoteSaveError] = useState(null);
 
     // Returns a Promise that resolves on success and rejects on any failure.
     const sendEditUpdateToBackend = (editPayload) => {
@@ -433,20 +437,28 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
             });
     }, [transcriptionData?.inputFileUrl, transcriptionData?.name]);
 
-    // Load notes on mount
+    // Load notes from server on mount
     useEffect(() => {
-        const savedNotes = localStorage.getItem(`notes_${transcriptionKey}`);
-        if (savedNotes) {
-            try {
-                setNotes(JSON.parse(savedNotes));
-            } catch (e) {
-                console.error('Error parsing saved notes:', e);
-                setNotes([]);
-            }
-        } else {
+        const dirName = transcriptionData?.name;
+        if (!dirName) {
             setNotes([]);
+            return;
         }
-    }, [transcriptionKey]);
+
+        fetch(`/get-notes/?dir_name=${encodeURIComponent(dirName)}`)
+            .then(res => {
+                if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+                return res.json();
+            })
+            .then(data => {
+                // Already sorted ascending by the server
+                setNotes(data.notes ?? []);
+            })
+            .catch(err => {
+                console.error('Failed to load notes from server:', err);
+                setNotes([]);
+            });
+    }, [transcriptionData?.name]);
 
     // Fetch transcription segments from dote.json
     useEffect(() => {
@@ -600,20 +612,64 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
     };
 
     const handleAddNote = (noteText) => {
-        const noteObj = {
-            id: Date.now(),
-            text: noteText,
-            timestamp: new Date().toLocaleString()
-        };
-        const updatedNotes = [noteObj, ...notes];
-        setNotes(updatedNotes);
-        localStorage.setItem(`notes_${transcriptionKey}`, JSON.stringify(updatedNotes));
+        const dirName = transcriptionData?.name;
+        if (!dirName) return;
+
+        setNoteSaveStatus('saving');
+        setNoteSaveError(null);
+
+        fetch('/save-note/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dir_name: dirName, note: noteText }),
+        })
+            .then(res => {
+                if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+                return res.json();
+            })
+            .then(data => {
+                // Server assigned the id — append at end (list is earliest-first)
+                setNotes(prev => [...prev, data.note]);
+                setNoteSaveStatus('idle');
+            })
+            .catch(err => {
+                console.error('Failed to save note on server:', err);
+                setNoteSaveStatus('error');
+                setNoteSaveError('Could not save the note. Please check your connection and try again.');
+            });
     };
 
     const handleDeleteNote = (noteId) => {
-        const updatedNotes = notes.filter(note => note.id !== noteId);
-        setNotes(updatedNotes);
-        localStorage.setItem(`notes_${transcriptionKey}`, JSON.stringify(updatedNotes));
+        const dirName = transcriptionData?.name;
+        if (!dirName) return;
+
+        // Snapshot for potential rollback
+        const previousNotes = notes;
+
+        // Optimistic removal
+        setNotes(prev => prev.filter(n => n.id !== noteId));
+        setNoteSaveStatus('saving');
+        setNoteSaveError(null);
+
+        fetch('/delete-note/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dir_name: dirName, note_id: noteId }),
+        })
+            .then(res => {
+                if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+                return res.json();
+            })
+            .then(() => {
+                setNoteSaveStatus('idle');
+            })
+            .catch(err => {
+                console.error('Failed to delete note on server:', err);
+                // Roll back optimistic removal
+                setNotes(previousNotes);
+                setNoteSaveStatus('error');
+                setNoteSaveError('Could not delete the note. Please check your connection and try again.');
+            });
     };
 
     return (
@@ -823,10 +879,86 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                 </div>
 
 
-                <div className="card-panel">
+                <div className="card-panel" style={{ position: 'relative' }}>
                     <h3 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
-                        📝 Saved Notes & Corrections ({notes.length})
+                        📝 Saved Notes &amp; Corrections ({notes.length})
                     </h3>
+
+                    {/* Note save in-progress overlay */}
+                    {noteSaveStatus === 'saving' && (
+                        <div style={{
+                            position: 'absolute',
+                            inset: 0,
+                            borderRadius: 'var(--radius-lg, 12px)',
+                            background: 'var(--overlay-bg)',
+                            backdropFilter: 'blur(4px)',
+                            WebkitBackdropFilter: 'blur(4px)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.75rem',
+                            zIndex: 10,
+                            pointerEvents: 'none',
+                        }}>
+                            <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                                💾 Saving note…
+                            </p>
+                            {/* Shimmer bar */}
+                            <div style={{
+                                width: '160px',
+                                height: '4px',
+                                borderRadius: '2px',
+                                background: 'var(--shimmer-bg)',
+                                overflow: 'hidden',
+                            }}>
+                                <div style={{
+                                    height: '100%',
+                                    width: '40%',
+                                    borderRadius: '2px',
+                                    background: 'linear-gradient(90deg, transparent, var(--accent-violet), transparent)',
+                                    animation: 'shimmer 1.4s ease-in-out infinite',
+                                }} />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Note save error banner */}
+                    {noteSaveStatus === 'error' && noteSaveError && (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '0.75rem',
+                            padding: '0.75rem 1rem',
+                            marginBottom: '1rem',
+                            background: 'var(--error-bg)',
+                            border: '1px solid var(--accent-rose)',
+                            borderRadius: 'var(--radius-md)',
+                            color: 'var(--error-text)',
+                            fontSize: '0.875rem',
+                        }}>
+                            <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>⚠️</span>
+                            <div style={{ flex: 1 }}>
+                                <strong>Save failed.</strong> {noteSaveError}
+                            </div>
+                            <button
+                                onClick={() => { setNoteSaveStatus('idle'); setNoteSaveError(null); }}
+                                title="Dismiss"
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    color: 'var(--error-text)',
+                                    fontSize: '1rem',
+                                    lineHeight: 1,
+                                    padding: '0',
+                                    flexShrink: 0,
+                                }}
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    )}
 
                     <div className="notes-list" style={{ maxHeight: 'calc(70vh - 50px)' }}>
                         {notes.length === 0 ? (
@@ -837,7 +969,7 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                             notes.map(note => (
                                 <div className="note-item" key={note.id}>
                                     <div className="note-header">
-                                        <span>📅 {note.timestamp}</span>
+                                        <span>📅 {new Date(note.date).toLocaleString()}</span>
                                         <button
                                             className="note-delete-btn"
                                             onClick={() => handleDeleteNote(note.id)}
@@ -846,7 +978,7 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                                             🗑️
                                         </button>
                                     </div>
-                                    <div className="note-text">{note.text}</div>
+                                    <div className="note-text">{note.note}</div>
                                 </div>
                             ))
                         )}

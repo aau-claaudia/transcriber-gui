@@ -4,27 +4,50 @@ const EditPage = ({ transcriptionKey, transcriptionData, onBack, onOpenNotes }) 
     const [notes, setNotes] = useState([]);
     const { logFiles, zipFile } = transcriptionData || {};
 
-    // Load notes from localStorage on mount/key change
+    // Load notes from server on mount / key change
     useEffect(() => {
-        const savedNotes = localStorage.getItem(`notes_${transcriptionKey}`);
-        if (savedNotes) {
-            try {
-                setNotes(JSON.parse(savedNotes));
-            } catch (e) {
-                console.error("Error parsing saved notes:", e);
-                setNotes([]);
-            }
-        } else {
+        const dirName = transcriptionData?.name;
+        if (!dirName) {
             setNotes([]);
+            return;
         }
-    }, [transcriptionKey]);
+
+        fetch(`/get-notes/?dir_name=${encodeURIComponent(dirName)}`)
+            .then(res => {
+                if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+                return res.json();
+            })
+            .then(data => {
+                setNotes(data.notes ?? []);
+            })
+            .catch(err => {
+                console.error('Failed to load notes from server:', err);
+                setNotes([]);
+            });
+    }, [transcriptionData?.name]);
 
 
-    // Delete note
+    // Delete note — optimistic removal with server sync
     const handleDeleteNote = (noteId) => {
-        const updatedNotes = notes.filter(note => note.id !== noteId);
-        setNotes(updatedNotes);
-        localStorage.setItem(`notes_${transcriptionKey}`, JSON.stringify(updatedNotes));
+        const dirName = transcriptionData?.name;
+        if (!dirName) return;
+
+        const previousNotes = notes;
+        setNotes(prev => prev.filter(note => note.id !== noteId));
+
+        fetch('/delete-note/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dir_name: dirName, note_id: noteId }),
+        })
+            .then(res => {
+                if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+            })
+            .catch(err => {
+                console.error('Failed to delete note on server:', err);
+                // Roll back on failure
+                setNotes(previousNotes);
+            });
     };
 
     const getFileExtension = (fileName) => {
@@ -180,7 +203,7 @@ const EditPage = ({ transcriptionKey, transcriptionData, onBack, onOpenNotes }) 
                             </button>
                         </div>
                         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                            Notes are stored locally. Click "Handle Notes" above to add new corrective notes or markers.
+                            Click "Handle Notes" above to add new corrective notes or to edit the generated transcription output.
                         </p>
 
                         <hr style={{ border: 'none', borderBottom: '1px solid var(--border-color)', margin: '1rem 0' }} />
@@ -195,7 +218,7 @@ const EditPage = ({ transcriptionKey, transcriptionData, onBack, onOpenNotes }) 
                                 notes.map(note => (
                                     <div className="note-item" key={note.id}>
                                         <div className="note-header">
-                                            <span>📅 {note.timestamp}</span>
+                                            <span>📅 {new Date(note.date).toLocaleString()}</span>
                                             <button
                                                 className="note-delete-btn"
                                                 onClick={() => handleDeleteNote(note.id)}
@@ -204,7 +227,7 @@ const EditPage = ({ transcriptionKey, transcriptionData, onBack, onOpenNotes }) 
                                                 🗑️
                                             </button>
                                         </div>
-                                        <div className="note-text">{note.text}</div>
+                                        <div className="note-text">{note.note}</div>
                                     </div>
                                 ))
                             )}

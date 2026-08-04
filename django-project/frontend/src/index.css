@@ -1176,3 +1176,10 @@ tr:hover td {
   gap: 0.5rem;
   justify-content: flex-end;
 }
+
+td.ucloud-file {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
