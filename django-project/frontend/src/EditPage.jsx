@@ -209,7 +209,7 @@ const EditPage = ({ transcriptionKey, transcriptionData, onBack, onOpenNotes }) 
                         <hr style={{ border: 'none', borderBottom: '1px solid var(--border-color)', margin: '1rem 0' }} />
 
                         <h3>Saved Notes ({notes.length})</h3>
-                        <div className="notes-list">
+                        <div className="notes-list" style={{ maxHeight: 'calc(70vh - 50px)' }}>
                             {notes.length === 0 ? (
                                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '1rem' }}>
                                     No notes recorded yet.
