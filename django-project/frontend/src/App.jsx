@@ -297,14 +297,29 @@ function App() {
         }
 
         if (!acc[dirName]) {
-            const parts = dirName.split('_');
-            let displayName = dirName;
+            const nameParts = dirName.split('_');
+
+            // Remove optional trailing run suffix: _runN (postfix added for name collisions)
+            if (nameParts.length >= 4) {
+                const lastPart = nameParts[nameParts.length - 1];
+                if (lastPart.startsWith('run')) {
+                    const runNumber = lastPart.slice(3);
+                    const isNumericRun = runNumber.length > 0 && runNumber.split('').every((char) => char >= '0' && char <= '9');
+                    if (isNumericRun) {
+                        nameParts.pop();
+                    }
+                }
+            }
+
+            let displayName = nameParts.join('_');
             let model = '';
             let lang = '';
-            if (parts.length >= 3) {
-                lang = parts[parts.length - 1];
-                model = parts[parts.length - 2];
-                displayName = parts.slice(0, parts.length - 2).join('_');
+
+            // Parse from right: <input_file_name>_<model>_<language>[_runN]
+            if (nameParts.length >= 3) {
+                lang = nameParts.pop();
+                model = nameParts.pop();
+                displayName = nameParts.join('_');
             }
 
             acc[dirName] = {

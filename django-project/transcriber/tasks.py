@@ -50,7 +50,8 @@ def transcription_task(self, model_size, language):
         input_files = [f for f in os.listdir(directory_path) if os.path.isfile(os.path.join(directory_path, f))]
         for filename in input_files:
             filename_without_ext, _ = os.path.splitext(filename)
-            transcription_key = f"{filename_without_ext}_{model_size}_{language}"
+            base_transcription_key = f"{filename_without_ext}_{model_size}_{language}"
+            transcription_key = build_unique_transcription_key(settings.MEDIA_ROOT, base_transcription_key)
             transcription_dir = os.path.join(settings.MEDIA_ROOT, transcription_key)
 
             trans_dir = os.path.join(transcription_dir, 'TRANSCRIPTIONS')
@@ -183,3 +184,14 @@ def annotate_with_ids(file_path):
 
     except Exception as e:
         logger.error(f"Error when creating IDs for output file for editing '{file_path}': {e}")
+
+def build_unique_transcription_key(media_root: str, base_key: str) -> str:
+    """Return a collision-safe key by appending _runN when needed."""
+    candidate = base_key
+    suffix = 2
+
+    while os.path.exists(os.path.join(media_root, candidate)):
+        candidate = f"{base_key}_run{suffix}"
+        suffix += 1
+
+    return candidate
