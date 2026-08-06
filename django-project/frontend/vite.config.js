@@ -69,6 +69,11 @@ export default defineConfig({
                 changeOrigin: true,
                 secure: false,
             },
+            '/export-file': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false,
+            },
             // Proxy media file requests to the Django/Daphne server.
             // Match any URL that contains '/media/'
             '^.*(/media/.*)$': {

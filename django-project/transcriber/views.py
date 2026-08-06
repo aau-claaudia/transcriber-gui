@@ -318,6 +318,46 @@ def serve_file(request, path):
     response['Content-Disposition'] = 'inline; filename="{}"'.format(os.path.basename(file_path))
     return response
 
+def export_file(request):
+    """
+    GET /export-file/?dir_name=<str>&target=<edited_output|notes>&format=<json|txt|docx>
+    Handles request to download specified export file (edited_output.json or notes.json).
+    Returns file as an attachment response.
+    """
+    dir_name = request.GET.get('dir_name', '').strip()
+    target = request.GET.get('target', 'edited_output').strip()
+    export_format = request.GET.get('format', 'json').strip().lower()
+
+    if not dir_name:
+        return JsonResponse({'error': 'dir_name parameter is required'}, status=400)
+
+    # Determine target file name based on target parameter
+    target_filename = 'notes.json' if target == 'notes' else 'edited_output.json'
+    file_path = os.path.join(settings.MEDIA_ROOT, dir_name, 'data', target_filename)
+
+    if not os.path.exists(file_path):
+        raise Http404(f"Export file {target_filename} not found for directory '{dir_name}'.")
+
+    download_name = f"{dir_name}_{target}.{export_format if export_format in ['json', 'txt', 'docx'] else 'json'}"
+
+    try:
+        with open(file_path, 'rb') as f:
+            file_data = f.read()
+
+        content_type = 'application/json'
+        if export_format == 'txt':
+            content_type = 'text/plain; charset=utf-8'
+        elif export_format == 'docx':
+            content_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+
+        response = HttpResponse(file_data, content_type=content_type)
+        response['Content-Length'] = str(len(file_data))
+        response['Content-Disposition'] = f'attachment; filename="{download_name}"'
+        return response
+    except Exception as e:
+        logger.error(f"export_file: failed to read '{file_path}': {e}")
+        return JsonResponse({'error': 'Could not process export file'}, status=500)
+
 
 def _guess_content_type(file_path):
     """Return a suitable MIME type for common audio/video files."""

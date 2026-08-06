@@ -260,6 +260,26 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
     const [noteSaveStatus, setNoteSaveStatus] = useState('idle');
     const [noteSaveError, setNoteSaveError] = useState(null);
 
+    // Export Modal State
+    const [showExportModal, setShowExportModal] = useState(false);
+    const [exportTarget, setExportTarget] = useState('edited_output'); // 'edited_output' | 'notes'
+    const [exportFormat, setExportFormat] = useState('json'); // 'json' | 'txt' | 'docx'
+
+    const handleDownloadExport = () => {
+        const dirName = transcriptionData?.name;
+        if (!dirName) return;
+
+        const downloadUrl = `/export-file/?dir_name=${encodeURIComponent(dirName)}&target=${exportTarget}&format=${exportFormat}`;
+
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = '';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setShowExportModal(false);
+    };
+
     // Returns a Promise that resolves on success and rejects on any failure.
     const sendEditUpdateToBackend = (editPayload) => {
         console.debug("Sending edit update to backend:", editPayload);
@@ -682,6 +702,9 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                     <button className="btn btn-secondary" onClick={onBackToEdit}>
                         ← Back to Results Page
                     </button>
+                    <button className="btn btn-secondary" onClick={() => setShowExportModal(true)}>
+                        📥 Export
+                    </button>
                 </div>
                 <h2 style={{ margin: 0, fontSize: '1.5rem' }}>{editMode ? 'Editing' : 'Annotating'}: {transcriptionKey}</h2>
             </div>
@@ -985,6 +1008,118 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                     </div>
                 </div>
             </div>
+
+            {/* Export Options Modal */}
+            {showExportModal && (
+                <div className="modal-overlay" onClick={() => setShowExportModal(false)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+                        <button className="modal-close-btn" onClick={() => setShowExportModal(false)} title="Close">
+                            ✕
+                        </button>
+                        <h3 style={{ marginTop: 0, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            📥 Export Options
+                        </h3>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+                            Select the target data and file format to export for <strong>{transcriptionKey}</strong>.
+                        </p>
+
+                        <div className="setting-group" style={{ marginBottom: '1.25rem' }}>
+                            <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.6rem' }}>
+                                Select Content to Export
+                            </label>
+                            <div className="export-radio-group">
+                                <label className={`export-radio-card ${exportTarget === 'edited_output' ? 'selected' : ''}`}>
+                                    <input
+                                        type="radio"
+                                        name="exportTarget"
+                                        value="edited_output"
+                                        checked={exportTarget === 'edited_output'}
+                                        onChange={(e) => setExportTarget(e.target.value)}
+                                    />
+                                    <div className="export-radio-details">
+                                        <span className="export-radio-title">Edited Output</span>
+                                        <span className="export-radio-sub">/media/{transcriptionData?.name || '...'}/data/edited_output.json</span>
+                                    </div>
+                                </label>
+                                <label className={`export-radio-card ${exportTarget === 'notes' ? 'selected' : ''}`}>
+                                    <input
+                                        type="radio"
+                                        name="exportTarget"
+                                        value="notes"
+                                        checked={exportTarget === 'notes'}
+                                        onChange={(e) => setExportTarget(e.target.value)}
+                                    />
+                                    <div className="export-radio-details">
+                                        <span className="export-radio-title">Notes</span>
+                                        <span className="export-radio-sub">/media/{transcriptionData?.name || '...'}/data/notes.json</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="setting-group" style={{ marginBottom: '1.25rem' }}>
+                            <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.6rem' }}>
+                                Select Export Format
+                            </label>
+                            <div className="export-radio-group horizontal">
+                                <label className={`export-radio-card compact ${exportFormat === 'json' ? 'selected' : ''}`}>
+                                    <input
+                                        type="radio"
+                                        name="exportFormat"
+                                        value="json"
+                                        checked={exportFormat === 'json'}
+                                        onChange={(e) => setExportFormat(e.target.value)}
+                                    />
+                                    <span>&nbsp;&nbsp; JSON</span>
+                                </label>
+                                <label className={`export-radio-card compact ${exportFormat === 'txt' ? 'selected' : ''}`}>
+                                    <input
+                                        type="radio"
+                                        name="exportFormat"
+                                        value="txt"
+                                        checked={exportFormat === 'txt'}
+                                        onChange={(e) => setExportFormat(e.target.value)}
+                                    />
+                                    <span>&nbsp;&nbsp; TXT</span>
+                                </label>
+                                <label className={`export-radio-card compact ${exportFormat === 'docx' ? 'selected' : ''}`}>
+                                    <input
+                                        type="radio"
+                                        name="exportFormat"
+                                        value="docx"
+                                        checked={exportFormat === 'docx'}
+                                        onChange={(e) => setExportFormat(e.target.value)}
+                                    />
+                                    <span>&nbsp;&nbsp; DOCX</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        {exportFormat !== 'json' && (
+                            <div style={{
+                                padding: '0.6rem 0.85rem',
+                                borderRadius: 'var(--radius-md)',
+                                background: 'var(--selection-form-bg)',
+                                border: '1px solid var(--selection-form-border)',
+                                fontSize: '0.8rem',
+                                color: 'var(--text-secondary)',
+                                marginBottom: '1.25rem'
+                            }}>
+                                ℹ️ <em>Prototype Note:</em> Format selected is <strong>.{exportFormat}</strong>. In this first draft, the server returns the JSON file format.
+                            </div>
+                        )}
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+                            <button className="btn btn-secondary" onClick={() => setShowExportModal(false)}>
+                                Cancel
+                            </button>
+                            <button className="btn btn-primary" onClick={handleDownloadExport}>
+                                📥 Download File
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
