@@ -217,13 +217,21 @@ def _media_url_prefix():
 
 
 def _media_path_to_url(path):
-    """Convert a MEDIA_ROOT file path to a media URL path (e.g. /media/x or /work/x)."""
-    media_root_real = _realpath(settings.MEDIA_ROOT)
-    file_real = _realpath(path)
-    if not _is_within_directory(file_real, media_root_real):
+    """
+    Convert a MEDIA_ROOT path to a media URL path (e.g. /media/x or /work/x).
+
+    Important: use the logical path (abspath) rather than realpath so symlinks
+    inside MEDIA_ROOT still map to their in-tree URL location.
+    """
+    media_root_abs = os.path.abspath(str(settings.MEDIA_ROOT))
+    file_abs = os.path.abspath(str(path))
+    try:
+        if os.path.commonpath([file_abs, media_root_abs]) != media_root_abs:
+            return None
+    except ValueError:
         return None
 
-    relative_path = os.path.relpath(file_real, media_root_real).replace(os.sep, '/')
+    relative_path = os.path.relpath(file_abs, media_root_abs).replace(os.sep, '/')
     return f"{_media_url_prefix()}{relative_path}"
 
 
