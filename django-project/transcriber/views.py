@@ -335,7 +335,6 @@ def _resolve_transcription_paths(request, relative_dir, base_dir, metadata=None,
 
     if not input_file_path:
         input_file_path = _first_completed_file(base_dir_real)
-        logger.info(f"Debug inferred input file path: {input_file_path}")
 
     if not edit_file_path:
         default_edit_path = os.path.join(base_dir_real, 'data', 'edited_output.json')
@@ -343,7 +342,6 @@ def _resolve_transcription_paths(request, relative_dir, base_dir, metadata=None,
             edit_file_path = default_edit_path
 
     canonical_input_url = _media_path_to_url(input_file_path) if input_file_path else None
-    logger.info(f"Debug - canonical_input_url: {canonical_input_url}")
     canonical_edit_url = _media_path_to_url(edit_file_path) if edit_file_path else None
 
     resolved_input_url = request.build_absolute_uri(canonical_input_url) if canonical_input_url else None
