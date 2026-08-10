@@ -248,6 +248,7 @@ def _resolve_candidate_path(raw_value):
 
 
 def _first_completed_file(base_dir):
+    logger.info(f"Debug - base_dir = {base_dir}")
     completed_dir = os.path.join(base_dir, 'COMPLETED')
     if not os.path.isdir(completed_dir):
         return None
@@ -257,7 +258,9 @@ def _first_completed_file(base_dir):
         if os.path.isfile(os.path.join(completed_dir, f))
     )
     if not completed_files:
+        logger.info(f"Debug - no files listed in Completed dir.")
         return None
+    logger.info(f"Debug - returning: {os.path.join(completed_dir, completed_files[0])}")
     return os.path.join(completed_dir, completed_files[0])
 
 
