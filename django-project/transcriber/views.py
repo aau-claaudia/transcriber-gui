@@ -253,6 +253,8 @@ def _first_completed_file(base_dir):
     if not os.path.isdir(completed_dir):
         return None
 
+    logger.info(f"Debug - completed dir = {completed_dir}")
+    logger.info(f"Debug - list dir = {os.listdir(completed_dir)}")
     completed_files = sorted(
         f for f in os.listdir(completed_dir)
         if os.path.isfile(os.path.join(completed_dir, f))
