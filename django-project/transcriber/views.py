@@ -248,21 +248,22 @@ def _resolve_candidate_path(raw_value):
 
 
 def _first_completed_file(base_dir):
-    logger.info(f"Debug - base_dir = {base_dir}")
     completed_dir = os.path.join(base_dir, 'COMPLETED')
     if not os.path.isdir(completed_dir):
         return None
+    entries = sorted(os.listdir(completed_dir))
+    completed_files = []
+    for name in entries:
+        path = os.path.join(completed_dir, name)
 
-    logger.info(f"Debug - completed dir = {completed_dir}")
-    logger.info(f"Debug - list dir = {os.listdir(completed_dir)}")
-    completed_files = sorted(
-        f for f in os.listdir(completed_dir)
-        if os.path.isfile(os.path.join(completed_dir, f))
-    )
+        is_regular_file = os.path.isfile(path)
+        is_symlink = os.path.islink(path)
+        if is_regular_file or is_symlink:
+            completed_files.append(name)
+
     if not completed_files:
-        logger.info(f"Debug - no files listed in Completed dir.")
+        logger.warning(f"No fallback input file in Completed dir.")
         return None
-    logger.info(f"Debug - returning: {os.path.join(completed_dir, completed_files[0])}")
     return os.path.join(completed_dir, completed_files[0])
 
 
