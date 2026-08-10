@@ -285,12 +285,33 @@ function App() {
         transcriptionId ? setTimeout(() => pollTranscriptionStatus(transcriptionIdRef.current), 5000) : console.log("No active transcription task to poll.")
     }, [transcriptionId, pollTranscriptionStatus])
 
+    const inferDirNameFromFileUrl = (fileUrl) => {
+        if (!fileUrl) return '';
+
+        let pathname = '';
+        try {
+            pathname = new URL(fileUrl, window.location.href).pathname || '';
+        } catch {
+            pathname = String(fileUrl);
+        }
+
+        const marker = '/TRANSCRIPTIONS/';
+        const markerIndex = pathname.indexOf(marker);
+        if (markerIndex === -1) return '';
+
+        let basePath = pathname.slice(0, markerIndex);
+        if (basePath.startsWith('/media/')) {
+            return basePath.slice('/media/'.length);
+        }
+        if (basePath.startsWith('/work/')) {
+            return basePath.slice('/work/'.length);
+        }
+        return basePath.replace(/^\/+/, '');
+    };
+
     // Group results by transcription directory (each folder is one run/input file)
     const groupedTranscriptions = results.reduce((acc, result) => {
-        const dirName = result.dir_name || (() => {
-            const parts = result.file_url?.split('/media/');
-            return parts && parts.length > 1 ? parts[1].split('/')[0] : '';
-        })();
+        const dirName = result.dir_name || inferDirNameFromFileUrl(result.file_url);
 
         if (!dirName) {
             return acc;
