@@ -15,7 +15,6 @@ from .model_memory_util import calculate_available_memory
 from pathlib import Path
 import subprocess
 import logging
-from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -194,224 +193,12 @@ def get_completed_transcriptions(request):
     response['result'] = responses
     return JsonResponse(response)
 
-
-def _realpath(path):
-    return os.path.realpath(str(path))
-
-
-def _is_within_directory(path, directory):
-    """Return True when path is inside directory (after resolving symlinks)."""
-    try:
-        return os.path.commonpath([_realpath(path), _realpath(directory)]) == _realpath(directory)
-    except ValueError:
-        return False
-
-
-def _media_url_prefix():
-    media_url = str(settings.MEDIA_URL or '/media/')
-    if not media_url.startswith('/'):
-        media_url = f'/{media_url}'
-    if not media_url.endswith('/'):
-        media_url = f'{media_url}/'
-    return media_url
-
-
-def _media_path_to_url(path):
-    """
-    Convert a MEDIA_ROOT path to a media URL path (e.g. /media/x or /work/x).
-
-    Important: use the logical path (abspath) rather than realpath so symlinks
-    inside MEDIA_ROOT still map to their in-tree URL location.
-    """
-    media_root_abs = os.path.abspath(str(settings.MEDIA_ROOT))
-    file_abs = os.path.abspath(str(path))
-    try:
-        if os.path.commonpath([file_abs, media_root_abs]) != media_root_abs:
-            return None
-    except ValueError:
-        return None
-
-    relative_path = os.path.relpath(file_abs, media_root_abs).replace(os.sep, '/')
-    return f"{_media_url_prefix()}{relative_path}"
-
-
-def _resolve_candidate_path(raw_value):
-    """Resolve URL/path-like value to a filesystem path candidate."""
-    if not raw_value:
-        return None
-
-    parsed_path = raw_value.strip()
-    if '://' in parsed_path:
-        parsed_path = urlparse(parsed_path).path
-
-    media_prefix = _media_url_prefix()
-    if parsed_path.startswith(media_prefix):
-        relative_path = parsed_path[len(media_prefix):].lstrip('/')
-        return os.path.join(settings.MEDIA_ROOT, relative_path)
-    if parsed_path.startswith('/work/'):
-        return parsed_path
-    if os.path.isabs(parsed_path):
-        return parsed_path
-    return os.path.join(settings.MEDIA_ROOT, parsed_path.lstrip('/'))
-
-
-def _first_completed_file(base_dir):
-    completed_dir = os.path.join(base_dir, 'COMPLETED')
-    if not os.path.isdir(completed_dir):
-        return None
-    entries = sorted(os.listdir(completed_dir))
-    completed_files = []
-    for name in entries:
-        path = os.path.join(completed_dir, name)
-
-        is_regular_file = os.path.isfile(path)
-        is_symlink = os.path.islink(path)
-        if is_regular_file or is_symlink:
-            completed_files.append(name)
-
-    if not completed_files:
-        logger.warning(f"No fallback input file in Completed dir.")
-        return None
-    return os.path.join(completed_dir, completed_files[0])
-
-
-def _resolve_transcription_paths(request, relative_dir, base_dir, metadata=None, input_file_hint=None):
-    """
-    Resolve safe input/edit file paths and URLs for a transcription directory.
-    Any metadata URL/path that does not resolve under MEDIA_ROOT and the current
-    transcription directory is treated as stale and replaced with a safe fallback.
-    """
-    metadata = metadata or {}
-    base_dir_real = _realpath(base_dir)
-    media_root_real = _realpath(settings.MEDIA_ROOT)
-
-    raw_input = input_file_hint or metadata.get('input_file_url')
-    raw_edit = metadata.get('edit_file_url')
-    input_source = 'request' if input_file_hint else 'metadata'
-
-    input_file_path = None
-    edit_file_path = None
-    stale_metadata_events = []
-
-    input_candidate = _resolve_candidate_path(raw_input) if raw_input else None
-    if input_candidate:
-        candidate_real = _realpath(input_candidate)
-        if _is_within_directory(candidate_real, media_root_real) and _is_within_directory(candidate_real, base_dir_real) and os.path.exists(candidate_real):
-            input_file_path = candidate_real
-        else:
-            if not _is_within_directory(candidate_real, media_root_real):
-                reason = 'outside_media_root'
-            elif not _is_within_directory(candidate_real, base_dir_real):
-                reason = 'outside_transcription_dir'
-            else:
-                reason = 'path_not_found'
-            stale_metadata_events.append({
-                'field': 'input_file_url',
-                'source': input_source,
-                'old_value': raw_input,
-                'candidate_path': candidate_real,
-                'reason': reason,
-            })
-
-    edit_candidate = _resolve_candidate_path(raw_edit) if raw_edit else None
-    if edit_candidate:
-        candidate_real = _realpath(edit_candidate)
-        if _is_within_directory(candidate_real, media_root_real) and _is_within_directory(candidate_real, base_dir_real) and os.path.exists(candidate_real):
-            edit_file_path = candidate_real
-        else:
-            if not _is_within_directory(candidate_real, media_root_real):
-                reason = 'outside_media_root'
-            elif not _is_within_directory(candidate_real, base_dir_real):
-                reason = 'outside_transcription_dir'
-            else:
-                reason = 'path_not_found'
-            stale_metadata_events.append({
-                'field': 'edit_file_url',
-                'source': 'metadata',
-                'old_value': raw_edit,
-                'candidate_path': candidate_real,
-                'reason': reason,
-            })
-
-    if not input_file_path:
-        input_file_path = _first_completed_file(base_dir_real)
-
-    if not edit_file_path:
-        default_edit_path = os.path.join(base_dir_real, 'data', 'edited_output.json')
-        if _is_within_directory(default_edit_path, media_root_real):
-            edit_file_path = default_edit_path
-
-    canonical_input_url = _media_path_to_url(input_file_path) if input_file_path else None
-    canonical_edit_url = _media_path_to_url(edit_file_path) if edit_file_path else None
-
-    resolved_input_url = request.build_absolute_uri(canonical_input_url) if canonical_input_url else None
-    resolved_edit_url = request.build_absolute_uri(canonical_edit_url) if canonical_edit_url else None
-
-    metadata_needs_update = False
-    if canonical_input_url and metadata.get('input_file_url') != canonical_input_url:
-        metadata_needs_update = True
-    if canonical_edit_url and metadata.get('edit_file_url') != canonical_edit_url:
-        metadata_needs_update = True
-
-    return {
-        'input_file_path': input_file_path,
-        'edit_file_path': edit_file_path,
-        'input_file_url': resolved_input_url,
-        'edit_file_url': resolved_edit_url,
-        'canonical_input_file_url': canonical_input_url,
-        'canonical_edit_file_url': canonical_edit_url,
-        'metadata_needs_update': metadata_needs_update,
-        'stale_metadata_events': stale_metadata_events,
-        'dir_name': relative_dir,
-    }
-
-
-def _log_stale_metadata_events(dir_name, resolved_paths):
-    """Write audit logs for rejected stale URL/path values and their corrected URLs."""
-    events = resolved_paths.get('stale_metadata_events') or []
-    if not events:
-        return
-
-    corrected_values = {
-        'input_file_url': resolved_paths.get('canonical_input_file_url'),
-        'edit_file_url': resolved_paths.get('canonical_edit_file_url'),
-    }
-
-    for event in events:
-        logger.warning(
-            "Metadata URL rejected for dir='%s': source=%s field=%s old_value='%s' candidate_path='%s' reason=%s corrected_value='%s'",
-            dir_name,
-            event.get('source'),
-            event.get('field'),
-            event.get('old_value'),
-            event.get('candidate_path'),
-            event.get('reason'),
-            corrected_values.get(event.get('field')),
-        )
-
-
-def _safe_write_metadata_urls(metadata_path, metadata, canonical_input_url, canonical_edit_url, dir_name):
-    """Persist corrected metadata URLs for self-healing stale metadata entries."""
-    try:
-        updated = dict(metadata or {})
-        if canonical_input_url:
-            updated['input_file_url'] = canonical_input_url
-        if canonical_edit_url:
-            updated['edit_file_url'] = canonical_edit_url
-
-        os.makedirs(os.path.dirname(metadata_path), exist_ok=True)
-        with open(metadata_path, 'w') as f:
-            json.dump(updated, f, indent=2)
-    except Exception as e:
-        logger.error(f"Failed to update metadata.json in {dir_name}: {e}")
-
 def prepare_results(request):
     responses = []
 
     if os.path.isdir(settings.MEDIA_ROOT):
         # avoid scanning folders in "old" transcriber-gui data structure
         exclude_dirs = {'UPLOADS', 'COMPLETED', 'TRANSCRIPTIONS', 'TRANSCRIPTIONS_TEMP'}
-        candidate_dirs = []
         for dir_name in os.listdir(settings.MEDIA_ROOT):
             if dir_name in exclude_dirs or dir_name.startswith('.'):
                 continue
@@ -419,51 +206,36 @@ def prepare_results(request):
             if not os.path.isdir(dir_path):
                 continue
 
-            # Include first-level folders under MEDIA_ROOT.
-            candidate_dirs.append((dir_name, dir_path))
-
-            # Also include folders exactly one level deeper.
-            for child_name in os.listdir(dir_path):
-                if child_name.startswith('.'):
-                    continue
-                child_path = os.path.join(dir_path, child_name)
-                if os.path.isdir(child_path):
-                    candidate_dirs.append((os.path.join(dir_name, child_name), child_path))
-
-        for relative_dir, base_dir in candidate_dirs:
             # Check if a TRANSCRIPTIONS folder exists within this directory
-            trans_dir = os.path.join(base_dir, 'TRANSCRIPTIONS')
+            trans_dir = os.path.join(dir_path, 'TRANSCRIPTIONS')
             if os.path.isdir(trans_dir):
                 # Read metadata.json if it exists
-                metadata_path = os.path.join(base_dir, 'data', 'metadata.json')
-                metadata = {}
+                metadata_path = os.path.join(dir_path, 'data', 'metadata.json')
+                input_file_url = None
+                edit_file_url = None
                 if os.path.exists(metadata_path):
                     try:
                         with open(metadata_path, 'r') as f:
-                            metadata = json.load(f)
+                            meta_data = json.load(f)
+                            raw_url = meta_data.get('input_file_url')
+                            if raw_url:
+                                input_file_url = request.build_absolute_uri(raw_url)
+                            raw_edit_url = meta_data.get('edit_file_url')
+                            if raw_edit_url:
+                                edit_file_url = request.build_absolute_uri(raw_edit_url)
                     except Exception as e:
-                        logger.error(f"Error reading metadata.json in {relative_dir}: {e}")
-                        metadata = {}
+                        logger.error(f"Error reading metadata.json in {dir_name}: {e}")
 
-                resolved_paths = _resolve_transcription_paths(
-                    request=request,
-                    relative_dir=relative_dir,
-                    base_dir=base_dir,
-                    metadata=metadata,
-                )
-
-                input_file_url = resolved_paths['input_file_url']
-                edit_file_url = resolved_paths['edit_file_url']
-                _log_stale_metadata_events(relative_dir, resolved_paths)
-
-                if resolved_paths['metadata_needs_update']:
-                    _safe_write_metadata_urls(
-                        metadata_path=metadata_path,
-                        metadata=metadata,
-                        canonical_input_url=resolved_paths['canonical_input_file_url'],
-                        canonical_edit_url=resolved_paths['canonical_edit_file_url'],
-                        dir_name=relative_dir,
-                    )
+                # Fallback to scanning COMPLETED/ if metadata was missing/incomplete
+                if not input_file_url:
+                    completed_dir = os.path.join(dir_path, 'COMPLETED')
+                    if os.path.isdir(completed_dir):
+                        completed_files = [f for f in os.listdir(completed_dir) if os.path.isfile(os.path.join(completed_dir, f))]
+                        if completed_files:
+                            input_file_url = request.build_absolute_uri(f"{settings.MEDIA_URL}{dir_name}/COMPLETED/{completed_files[0]}")
+                # Fallback to default edit_file_url
+                if not edit_file_url:
+                    edit_file_url = request.build_absolute_uri(f"{settings.MEDIA_URL}{dir_name}/data/edited_output.json")
 
                 for filename in os.listdir(trans_dir):
                     file_path = os.path.join(trans_dir, filename)
@@ -472,16 +244,13 @@ def prepare_results(request):
                             created_at = os.path.getmtime(file_path)
                         except OSError:
                             created_at = 0.0
-                        media_file_url = _media_path_to_url(os.path.join(trans_dir, filename))
-                        if not media_file_url:
-                            continue
-                        file_url = request.build_absolute_uri(media_file_url)
+                        file_url = request.build_absolute_uri(f"{settings.MEDIA_URL}{dir_name}/TRANSCRIPTIONS/{filename}")
                         responses.append({
                             'file_name': filename,
                             'file_url': file_url,
                             'created_at': created_at,
                             'input_file_url': input_file_url,
-                            'dir_name': relative_dir,
+                            'dir_name': dir_name,
                             'edit_file_url': edit_file_url
                         })
 
@@ -548,7 +317,6 @@ def serve_file(request, path):
     response['Accept-Ranges'] = 'bytes'
     response['Content-Disposition'] = 'inline; filename="{}"'.format(os.path.basename(file_path))
     return response
-
 
 def export_file(request):
     """
@@ -661,68 +429,59 @@ def convert_audio(request):
     if not dir_name or not input_file_url:
         return JsonResponse({'error': 'dir_name and input_file_url are required'}, status=400)
 
-    base_dir = os.path.join(settings.MEDIA_ROOT, dir_name)
-    if not _is_within_directory(base_dir, settings.MEDIA_ROOT):
-        return JsonResponse({'error': 'Invalid dir_name path'}, status=400)
+    # Resolve the URL to an absolute filesystem path
+    try:
+        parsed = input_file_url
+        # Strip scheme + host if present, leaving only the path
+        if '://' in parsed:
+            from urllib.parse import urlparse
+            parsed = urlparse(input_file_url).path
 
-    data_dir = os.path.join(base_dir, 'data')
-    metadata_path = os.path.join(data_dir, 'metadata.json')
-    metadata = {}
-    if os.path.exists(metadata_path):
-        try:
-            with open(metadata_path, 'r') as f:
-                metadata = json.load(f)
-        except Exception as e:
-            logger.error(f"convert_audio: failed to read metadata.json for '{dir_name}': {e}")
+        # Determine base directory from the URL path prefix
+        if parsed.startswith('/work/'):
+            input_fs_path = parsed  # /work/... is an absolute path on UCloud
+        elif settings.MEDIA_URL and parsed.startswith(settings.MEDIA_URL):
+            rel = parsed[len(settings.MEDIA_URL):]
+            input_fs_path = os.path.join(settings.MEDIA_ROOT, rel)
+        else:
+            # Fallback: try treating it as relative to MEDIA_ROOT
+            input_fs_path = os.path.join(settings.MEDIA_ROOT, parsed.lstrip('/'))
+    except Exception as e:
+        logger.error(f"convert_audio: could not resolve input URL '{input_file_url}': {e}")
+        return JsonResponse({'status': 'unchanged', 'input_file_url': input_file_url})
 
-    resolved_paths = _resolve_transcription_paths(
-        request=request,
-        relative_dir=dir_name,
-        base_dir=base_dir,
-        metadata=metadata,
-        input_file_hint=input_file_url,
-    )
-    _log_stale_metadata_events(dir_name, resolved_paths)
-
-    if resolved_paths['metadata_needs_update']:
-        _safe_write_metadata_urls(
-            metadata_path=metadata_path,
-            metadata=metadata,
-            canonical_input_url=resolved_paths['canonical_input_file_url'],
-            canonical_edit_url=resolved_paths['canonical_edit_file_url'],
-            dir_name=dir_name,
-        )
-
-    input_fs_path = resolved_paths['input_file_path']
-    if not input_fs_path or not os.path.exists(input_fs_path):
-        logger.warning(f"convert_audio: input file not found or out of scope for '{dir_name}'")
+    if not os.path.exists(input_fs_path):
+        logger.warning(f"convert_audio: input file not found at '{input_fs_path}'")
         return JsonResponse({'status': 'unchanged', 'input_file_url': input_file_url})
 
     # Determine output path: <MEDIA_ROOT>/<dir_name>/data/converted_audio.mp3
+    data_dir = os.path.join(settings.MEDIA_ROOT, dir_name, 'data')
     os.makedirs(data_dir, exist_ok=True)
     output_fs_path = os.path.join(data_dir, 'converted_audio.mp3')
 
     # Idempotency: if already converted, skip ffmpeg
     if os.path.exists(output_fs_path):
         logger.info(f"convert_audio: already converted for '{dir_name}', returning cached path.")
-    else:
-        # Run conversion
-        success, result_path = convert_to_mp3(input_fs_path, output_fs_path)
-        if not success:
-            logger.warning(f"convert_audio: ffmpeg conversion failed for '{dir_name}'")
-            return JsonResponse({'status': 'unchanged', 'input_file_url': input_file_url})
+        output_media_url = f"{settings.MEDIA_URL}{dir_name}/data/converted_audio.mp3"
+        new_abs_url = request.build_absolute_uri(output_media_url)
+        return JsonResponse({'status': 'already_converted', 'input_file_url': new_abs_url})
 
-    # Update metadata.json with the new URL
-    output_media_url = _media_path_to_url(output_fs_path)
-    if not output_media_url:
-        logger.warning(f"convert_audio: converted file path could not be mapped to MEDIA_URL for '{dir_name}'")
+    # Run conversion
+    success, result_path = convert_to_mp3(input_fs_path, output_fs_path)
+
+    if not success:
+        logger.warning(f"convert_audio: ffmpeg conversion failed for '{dir_name}'")
         return JsonResponse({'status': 'unchanged', 'input_file_url': input_file_url})
 
+    # Update metadata.json with the new URL
+    output_media_url = f"{settings.MEDIA_URL}{dir_name}/data/converted_audio.mp3"
+    metadata_path = os.path.join(data_dir, 'metadata.json')
     try:
-        meta = dict(metadata or {})
+        meta = {}
+        if os.path.exists(metadata_path):
+            with open(metadata_path, 'r') as f:
+                meta = json.load(f)
         meta['input_file_url'] = output_media_url
-        if resolved_paths.get('canonical_edit_file_url'):
-            meta['edit_file_url'] = resolved_paths['canonical_edit_file_url']
         with open(metadata_path, 'w') as f:
             json.dump(meta, f, indent=2)
         logger.info(f"convert_audio: updated metadata.json for '{dir_name}'")
@@ -758,11 +517,7 @@ def edit_transcription_segment(request):
     if not isinstance(payload, dict):
         return JsonResponse({'error': 'payload must be an object'}, status=400)
 
-    base_dir = os.path.join(settings.MEDIA_ROOT, dir_name)
-    if not _is_within_directory(base_dir, settings.MEDIA_ROOT):
-        return JsonResponse({'error': 'Invalid dir_name path'}, status=400)
-
-    data_dir = os.path.join(base_dir, 'data')
+    data_dir = os.path.join(settings.MEDIA_ROOT, dir_name, 'data')
     metadata_path = os.path.join(data_dir, 'metadata.json')
 
     if not os.path.exists(metadata_path):
@@ -775,27 +530,25 @@ def edit_transcription_segment(request):
         logger.error(f"edit_transcription_segment: failed to read metadata for '{dir_name}': {e}")
         return JsonResponse({'error': 'Could not read metadata.json'}, status=500)
 
-    resolved_paths = _resolve_transcription_paths(
-        request=request,
-        relative_dir=dir_name,
-        base_dir=base_dir,
-        metadata=metadata,
-    )
-    _log_stale_metadata_events(dir_name, resolved_paths)
+    edit_file_url = metadata.get('edit_file_url')
+    if not edit_file_url:
+        return JsonResponse({'error': 'edit_file_url missing in metadata.json'}, status=400)
 
-    if resolved_paths['metadata_needs_update']:
-        _safe_write_metadata_urls(
-            metadata_path=metadata_path,
-            metadata=metadata,
-            canonical_input_url=resolved_paths['canonical_input_file_url'],
-            canonical_edit_url=resolved_paths['canonical_edit_file_url'],
-            dir_name=dir_name,
-        )
+    # Resolve metadata edit_file_url to a filesystem path.
+    parsed_path = edit_file_url
+    if '://' in parsed_path:
+        from urllib.parse import urlparse
+        parsed_path = urlparse(parsed_path).path
 
-    edit_file_url = resolved_paths['edit_file_url']
-    edit_file_path = resolved_paths['edit_file_path']
+    if settings.MEDIA_URL and parsed_path.startswith(settings.MEDIA_URL):
+        relative_path = parsed_path[len(settings.MEDIA_URL):].lstrip('/')
+        edit_file_path = os.path.join(settings.MEDIA_ROOT, relative_path)
+    elif parsed_path.startswith('/work/'):
+        edit_file_path = parsed_path
+    else:
+        edit_file_path = os.path.join(settings.MEDIA_ROOT, parsed_path.lstrip('/'))
 
-    if not edit_file_path or not os.path.exists(edit_file_path):
+    if not os.path.exists(edit_file_path):
         return JsonResponse({'error': 'Target edit file not found'}, status=404)
 
     try:
