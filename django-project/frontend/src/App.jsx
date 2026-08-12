@@ -320,6 +320,8 @@ function App() {
         if (!acc[dirName]) {
             const nameParts = dirName.split('_');
 
+            let run_postfix = ''
+
             // Remove optional trailing run suffix: _runN (postfix added for name collisions)
             if (nameParts.length >= 4) {
                 const lastPart = nameParts[nameParts.length - 1];
@@ -327,7 +329,7 @@ function App() {
                     const runNumber = lastPart.slice(3);
                     const isNumericRun = runNumber.length > 0 && runNumber.split('').every((char) => char >= '0' && char <= '9');
                     if (isNumericRun) {
-                        nameParts.pop();
+                        run_postfix = nameParts.pop();
                     }
                 }
             }
@@ -348,6 +350,7 @@ function App() {
                 displayName,
                 model,
                 language: lang,
+                runPostFix: run_postfix,
                 date: result.created_at || Date.now() / 1000,
                 files: [],
                 mergedFiles: [],
@@ -356,6 +359,7 @@ function App() {
                 inputFileUrl: result.input_file_url,
                 editFileUrl: result.edit_file_url
             };
+            //console.debug(acc[dirName]);
         }
 
         if (result.created_at && result.created_at > acc[dirName].date) {
@@ -667,7 +671,7 @@ function App() {
                                                 {isVideo ? '🎥' : '🎵'}
                                             </div>
                                             <div className="row-details">
-                                                <span className="row-title">{row.displayName || row.name}</span>
+                                                <span className="row-title">{row.displayName || row.name} {row.runPostFix && row.runPostFix !== '' && `(${row.runPostFix})`} </span>
                                                 <span className="row-date">
                                                     {row.model && <span className="badge-model">{row.model}</span>}
                                                     {row.language && `(${row.language}) • `}

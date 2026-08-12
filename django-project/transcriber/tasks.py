@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 
 from django.conf import settings
+from .utils import convert_to_mp3
 
 logger = logging.getLogger(__name__)
 
@@ -55,19 +56,36 @@ def transcription_task(self, model_size, language):
             transcription_dir = os.path.join(settings.MEDIA_ROOT, transcription_key)
 
             trans_dir = os.path.join(transcription_dir, 'TRANSCRIPTIONS')
-            comp_dir = os.path.join(transcription_dir, 'COMPLETED')
             data_dir = os.path.join(transcription_dir, 'data')
 
             os.makedirs(trans_dir, exist_ok=True)
-            os.makedirs(comp_dir, exist_ok=True)
             os.makedirs(data_dir, exist_ok=True)
 
-
-            # Move the input file from UPLOADS/INPUT to the COMPLETED folder in the new directory
+            # convert input file if needed or copy/move input file to data
+            input_file_converted = False
             src_file = os.path.join(directory_path, filename)
-            dst_file = os.path.join(comp_dir, filename)
-            shutil.move(src_file, dst_file)
-            logger.info(f"Moved input file: {src_file} to {dst_file}")
+            dst_file = os.path.join(data_dir, filename)
+            # is the input file format usable by the UI to handle edit functionality
+            input_file_format_supported = src_file.lower().endswith((".mp3", ".wav"))
+            if not input_file_format_supported:
+                # convert file to supported format
+                converted_file = os.path.join(data_dir, "converted_audio.mp3")
+                success, _ = convert_to_mp3(src_file, converted_file)
+                if not success:
+                    logger.warning(f"convert_audio: ffmpeg conversion failed for '{src_file}'")
+                    shutil.copy(src_file, dst_file)
+                else:
+                    input_file_converted = True
+            else:
+                # format supported, either move or copy (real file / symlink)
+                if os.path.isfile(src_file) and not os.path.islink(src_file):
+                    # move file
+                    shutil.move(src_file, dst_file)
+                    logger.info(f"Moved input file: {src_file} to {dst_file}")
+                else:
+                    # copy file
+                    shutil.copy(src_file, dst_file)
+                    logger.info(f"Copied input file: {src_file} to {dst_file}")
 
             # Move matching output files from TRANSCRIPTIONS_TEMP to TRANSCRIPTIONS
             for out_item in os.listdir(output_dir_path):
@@ -101,12 +119,17 @@ def transcription_task(self, model_size, language):
             # Write metadata.json
             metadata_content = {
                 "input_file_name": filename,
-                "input_file_url": f"/media/{transcription_key}/COMPLETED/{filename}",
-                "edit_file_url": f"/media/{transcription_key}/data/{edit_file_name}",
+                "input_file_converted": input_file_converted
             }
             metadata_file = os.path.join(data_dir, 'metadata.json')
             with open(metadata_file, 'w') as mf:
                 json.dump(metadata_content, mf, indent=4)
+
+        # clean /UPLOADS/INPUT folder
+        input_folder = Path(directory_path)
+        for p in input_folder.iterdir():
+            if p.is_file() or p.is_symlink():
+                p.unlink()
 
     except subprocess.CalledProcessError as e:
         write_transcriber_output(e.stderr, e.stdout, transcriber_output_file, directory_path, model_size)

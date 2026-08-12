@@ -12,8 +12,7 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView
 from .tasks import transcription_task, shutdown_server_task
 from .model_memory_util import calculate_available_memory
-from pathlib import Path
-import subprocess
+from .utils import convert_to_mp3
 import logging
 
 logger = logging.getLogger(__name__)
@@ -193,6 +192,33 @@ def get_completed_transcriptions(request):
     response['result'] = responses
     return JsonResponse(response)
 
+def _metadata_input_converted(meta_data):
+    """Return conversion flag from metadata"""
+    value = meta_data.get('input_file_converted')
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() == 'true'
+    return False
+
+def _metadata_input_file_name(meta_data):
+    value = meta_data.get('input_file_name')
+    return value.strip() if isinstance(value, str) else ''
+
+def _build_media_absolute_url(request, relative_path):
+    media_prefix = settings.MEDIA_URL if settings.MEDIA_URL.endswith('/') else f"{settings.MEDIA_URL}/"
+    rel = relative_path.lstrip('/')
+    return request.build_absolute_uri(f"{media_prefix}{rel}")
+
+def _infer_input_file_relative_path(dir_name, meta_data):
+    if _metadata_input_converted(meta_data):
+        return f"{dir_name}/data/converted_audio.mp3"
+
+    input_file_name = _metadata_input_file_name(meta_data)
+    if input_file_name:
+        return f"{dir_name}/data/{input_file_name}"
+    return ''
+
 def prepare_results(request):
     responses = []
 
@@ -212,30 +238,24 @@ def prepare_results(request):
                 # Read metadata.json if it exists
                 metadata_path = os.path.join(dir_path, 'data', 'metadata.json')
                 input_file_url = None
-                edit_file_url = None
+                edit_file_url = _build_media_absolute_url(request, f"{dir_name}/data/edited_output.json")
                 if os.path.exists(metadata_path):
                     try:
                         with open(metadata_path, 'r') as f:
                             meta_data = json.load(f)
-                            raw_url = meta_data.get('input_file_url')
-                            if raw_url:
-                                input_file_url = request.build_absolute_uri(raw_url)
-                            raw_edit_url = meta_data.get('edit_file_url')
-                            if raw_edit_url:
-                                edit_file_url = request.build_absolute_uri(raw_edit_url)
+                            inferred_input_relative = _infer_input_file_relative_path(dir_name, meta_data)
+                            if inferred_input_relative:
+                                input_file_url = _build_media_absolute_url(request, inferred_input_relative)
                     except Exception as e:
                         logger.error(f"Error reading metadata.json in {dir_name}: {e}")
 
-                # Fallback to scanning COMPLETED/ if metadata was missing/incomplete
+                # Fallback to scanning data/ if metadata was missing/incomplete
                 if not input_file_url:
-                    completed_dir = os.path.join(dir_path, 'COMPLETED')
+                    completed_dir = os.path.join(dir_path, 'data')
                     if os.path.isdir(completed_dir):
-                        completed_files = [f for f in os.listdir(completed_dir) if os.path.isfile(os.path.join(completed_dir, f))]
+                        completed_files = [f for f in os.listdir(completed_dir) if (os.path.isfile(os.path.join(completed_dir, f)) and f.lower().endswith((".mp3", ".wav")))]
                         if completed_files:
-                            input_file_url = request.build_absolute_uri(f"{settings.MEDIA_URL}{dir_name}/COMPLETED/{completed_files[0]}")
-                # Fallback to default edit_file_url
-                if not edit_file_url:
-                    edit_file_url = request.build_absolute_uri(f"{settings.MEDIA_URL}{dir_name}/data/edited_output.json")
+                            input_file_url = _build_media_absolute_url(request, f"{dir_name}/data/{completed_files[0]}")
 
                 for filename in os.listdir(trans_dir):
                     file_path = os.path.join(trans_dir, filename)
@@ -244,7 +264,7 @@ def prepare_results(request):
                             created_at = os.path.getmtime(file_path)
                         except OSError:
                             created_at = 0.0
-                        file_url = request.build_absolute_uri(f"{settings.MEDIA_URL}{dir_name}/TRANSCRIPTIONS/{filename}")
+                        file_url = _build_media_absolute_url(request, f"{dir_name}/TRANSCRIPTIONS/{filename}")
                         responses.append({
                             'file_name': filename,
                             'file_url': file_url,
@@ -411,7 +431,7 @@ def convert_audio(request):
     POST endpoint: convert the input audio/video file for a transcription to .mp3.
     Called when editing notes and the input file format is unsupported.
     Expected JSON body:
-        { "dir_name": "<transcription dir>", "input_file_url": "<absolute url>" }
+        { "dir_name": "<transcription dir>" }
     Returns:
         { "status": "converted"|"already_converted"|"unchanged", "input_file_url": "<absolute url>" }
     """
@@ -426,70 +446,81 @@ def convert_audio(request):
     dir_name = body.get('dir_name', '').strip()
     input_file_url = body.get('input_file_url', '').strip()
 
-    if not dir_name or not input_file_url:
-        return JsonResponse({'error': 'dir_name and input_file_url are required'}, status=400)
+    if not dir_name:
+        return JsonResponse({'error': 'dir_name is required'}, status=400)
 
-    # Resolve the URL to an absolute filesystem path
-    try:
-        parsed = input_file_url
-        # Strip scheme + host if present, leaving only the path
-        if '://' in parsed:
-            from urllib.parse import urlparse
-            parsed = urlparse(input_file_url).path
-
-        # Determine base directory from the URL path prefix
-        if parsed.startswith('/work/'):
-            input_fs_path = parsed  # /work/... is an absolute path on UCloud
-        elif settings.MEDIA_URL and parsed.startswith(settings.MEDIA_URL):
-            rel = parsed[len(settings.MEDIA_URL):]
-            input_fs_path = os.path.join(settings.MEDIA_ROOT, rel)
-        else:
-            # Fallback: try treating it as relative to MEDIA_ROOT
-            input_fs_path = os.path.join(settings.MEDIA_ROOT, parsed.lstrip('/'))
-    except Exception as e:
-        logger.error(f"convert_audio: could not resolve input URL '{input_file_url}': {e}")
-        return JsonResponse({'status': 'unchanged', 'input_file_url': input_file_url})
-
-    if not os.path.exists(input_fs_path):
-        logger.warning(f"convert_audio: input file not found at '{input_fs_path}'")
-        return JsonResponse({'status': 'unchanged', 'input_file_url': input_file_url})
-
-    # Determine output path: <MEDIA_ROOT>/<dir_name>/data/converted_audio.mp3
     data_dir = os.path.join(settings.MEDIA_ROOT, dir_name, 'data')
     os.makedirs(data_dir, exist_ok=True)
+    metadata_path = os.path.join(data_dir, 'metadata.json')
+
+    meta = {}
+    if os.path.exists(metadata_path):
+        try:
+            with open(metadata_path, 'r') as f:
+                meta = json.load(f)
+        except Exception as e:
+            logger.error(f"convert_audio: failed to read metadata.json for '{dir_name}': {e}")
+            return JsonResponse({'error': 'Could not read metadata.json'}, status=500)
+
+    input_file_name = _metadata_input_file_name(meta)
+
+    # Determine output path: <MEDIA_ROOT>/<dir_name>/data/converted_audio.mp3
     output_fs_path = os.path.join(data_dir, 'converted_audio.mp3')
+    output_media_rel = f"{dir_name}/data/converted_audio.mp3"
+    output_abs_url = _build_media_absolute_url(request, output_media_rel)
 
     # Idempotency: if already converted, skip ffmpeg
     if os.path.exists(output_fs_path):
         logger.info(f"convert_audio: already converted for '{dir_name}', returning cached path.")
-        output_media_url = f"{settings.MEDIA_URL}{dir_name}/data/converted_audio.mp3"
-        new_abs_url = request.build_absolute_uri(output_media_url)
-        return JsonResponse({'status': 'already_converted', 'input_file_url': new_abs_url})
+        try:
+            meta['input_file_converted'] = True
+            meta.pop('input_file_converted:', None)
+            with open(metadata_path, 'w') as f:
+                json.dump(meta, f, indent=2)
+        except Exception as e:
+            logger.error(f"convert_audio: failed to normalize metadata.json for '{dir_name}': {e}")
+        return JsonResponse({'status': 'already_converted', 'input_file_url': output_abs_url})
+
+    # Resolve input path from metadata first.
+    input_fs_path = ''
+    if input_file_name:
+        candidate = os.path.join(settings.MEDIA_ROOT, dir_name, 'data', input_file_name)
+        if os.path.exists(candidate):
+            input_fs_path = candidate
+
+    # Fallback: use first file in data/ when metadata is incomplete.
+    if not input_fs_path:
+        logger.warning(f"convert_audio: falling back to reading first file in data directory.")
+        completed_dir = os.path.join(settings.MEDIA_ROOT, dir_name, 'data')
+        if os.path.isdir(completed_dir):
+            completed_files = [f for f in os.listdir(completed_dir) if (os.path.isfile(os.path.join(completed_dir, f)) and f.lower().endswith(("mp3", ".wav")))]
+            if completed_files:
+                input_file_name = input_file_name or completed_files[0]
+                input_fs_path = os.path.join(completed_dir, completed_files[0])
+
+    if not input_fs_path or not os.path.exists(input_fs_path):
+        logger.warning(f"convert_audio: input file not found for '{dir_name}'")
+        return JsonResponse({'status': 'unchanged', 'input_file_url': input_file_url})
 
     # Run conversion
-    success, result_path = convert_to_mp3(input_fs_path, output_fs_path)
+    success, _ = convert_to_mp3(input_fs_path, output_fs_path)
 
     if not success:
         logger.warning(f"convert_audio: ffmpeg conversion failed for '{dir_name}'")
         return JsonResponse({'status': 'unchanged', 'input_file_url': input_file_url})
 
-    # Update metadata.json with the new URL
-    output_media_url = f"{settings.MEDIA_URL}{dir_name}/data/converted_audio.mp3"
-    metadata_path = os.path.join(data_dir, 'metadata.json')
+    # Update metadata.json with conversion flag only.
     try:
-        meta = {}
-        if os.path.exists(metadata_path):
-            with open(metadata_path, 'r') as f:
-                meta = json.load(f)
-        meta['input_file_url'] = output_media_url
+        if input_file_name:
+            meta['input_file_name'] = input_file_name
+        meta['input_file_converted'] = True
         with open(metadata_path, 'w') as f:
             json.dump(meta, f, indent=2)
         logger.info(f"convert_audio: updated metadata.json for '{dir_name}'")
     except Exception as e:
         logger.error(f"convert_audio: failed to update metadata.json for '{dir_name}': {e}")
 
-    new_abs_url = request.build_absolute_uri(output_media_url)
-    return JsonResponse({'status': 'converted', 'input_file_url': new_abs_url})
+    return JsonResponse({'status': 'converted', 'input_file_url': output_abs_url})
 
 @csrf_exempt
 def edit_transcription_segment(request):
@@ -518,35 +549,8 @@ def edit_transcription_segment(request):
         return JsonResponse({'error': 'payload must be an object'}, status=400)
 
     data_dir = os.path.join(settings.MEDIA_ROOT, dir_name, 'data')
-    metadata_path = os.path.join(data_dir, 'metadata.json')
-
-    if not os.path.exists(metadata_path):
-        return JsonResponse({'error': 'metadata.json not found for this transcription'}, status=404)
-
-    try:
-        with open(metadata_path, 'r') as f:
-            metadata = json.load(f)
-    except Exception as e:
-        logger.error(f"edit_transcription_segment: failed to read metadata for '{dir_name}': {e}")
-        return JsonResponse({'error': 'Could not read metadata.json'}, status=500)
-
-    edit_file_url = metadata.get('edit_file_url')
-    if not edit_file_url:
-        return JsonResponse({'error': 'edit_file_url missing in metadata.json'}, status=400)
-
-    # Resolve metadata edit_file_url to a filesystem path.
-    parsed_path = edit_file_url
-    if '://' in parsed_path:
-        from urllib.parse import urlparse
-        parsed_path = urlparse(parsed_path).path
-
-    if settings.MEDIA_URL and parsed_path.startswith(settings.MEDIA_URL):
-        relative_path = parsed_path[len(settings.MEDIA_URL):].lstrip('/')
-        edit_file_path = os.path.join(settings.MEDIA_ROOT, relative_path)
-    elif parsed_path.startswith('/work/'):
-        edit_file_path = parsed_path
-    else:
-        edit_file_path = os.path.join(settings.MEDIA_ROOT, parsed_path.lstrip('/'))
+    edit_file_path = os.path.join(data_dir, 'edited_output.json')
+    edit_file_url = _build_media_absolute_url(request, f"{dir_name}/data/edited_output.json")
 
     if not os.path.exists(edit_file_path):
         return JsonResponse({'error': 'Target edit file not found'}, status=404)
@@ -754,30 +758,3 @@ def delete_note(request):
 
     return JsonResponse({'status': 'ok', 'deleted_id': note_id})
 
-
-def convert_to_mp3(input_file, output_file):
-    """
-    Converts an audio/video file to .mp3 using ffmpeg via subprocess.
-    """
-    command = [
-        'ffmpeg',
-        '-i', input_file,    # Input file
-        '-vn',               # Disable video (useful if input is a video file)
-        '-ar', '16000',      # Set audio sampling rate
-        '-ac', '1',          # Set number of audio channels
-        '-b:a', '128k',      # Set audio bitrate
-        '-y',                # Accept overwrite
-        output_file          # Output file
-    ]
-
-    try:
-        # check=True will raise a CalledProcessError if the command fails
-        # capture_output=True allows access to the error message if the command fails
-        subprocess.run(command, check=True, capture_output=True, text=True)
-        logger.info(f"Successfully converted audio/video file to: {output_file}")
-        return True, Path(output_file)
-
-    except subprocess.CalledProcessError as e:
-        logger.info(f"Conversion failed for {input_file}.")
-        logger.info(f"FFmpeg Error Output: {e.stderr}")
-        return False, input_file
