@@ -225,12 +225,27 @@ def prepare_results(request):
     if os.path.isdir(settings.MEDIA_ROOT):
         # avoid scanning folders in "old" transcriber-gui data structure
         exclude_dirs = {'UPLOADS', 'COMPLETED', 'TRANSCRIPTIONS', 'TRANSCRIPTIONS_TEMP'}
+        candidate_dirs = []
+
         for dir_name in os.listdir(settings.MEDIA_ROOT):
             if dir_name in exclude_dirs or dir_name.startswith('.'):
                 continue
             dir_path = os.path.join(settings.MEDIA_ROOT, dir_name)
             if not os.path.isdir(dir_path):
                 continue
+
+            # Include first-level folders under MEDIA_ROOT.
+            candidate_dirs.append((dir_name, dir_path))
+
+            # Also include folders exactly one level deeper.
+            for child_name in os.listdir(dir_path):
+                if child_name.startswith('.'):
+                    continue
+                child_path = os.path.join(dir_path, child_name)
+                if os.path.isdir(child_path):
+                    candidate_dirs.append((os.path.join(dir_name, child_name), child_path))
+
+        for dir_name, dir_path in candidate_dirs:
 
             # Check if a TRANSCRIPTIONS folder exists within this directory
             trans_dir = os.path.join(dir_path, 'TRANSCRIPTIONS')
