@@ -201,6 +201,43 @@ def _metadata_input_converted(meta_data):
         return value.strip().lower() == 'true'
     return False
 
+def _get_user_edited_flag(meta_data):
+    """Return user edited flag from metadata"""
+    value = meta_data.get('user_edited')
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() == 'true'
+    return False
+
+def _ensure_user_edited_metadata(dir_name):
+    """
+    Ensure metadata.json for the transcription dir has 'user_edited': True.
+    Only writes to disk if 'user_edited' is not already True (first edit only).
+    """
+    if not dir_name:
+        return
+    data_dir = os.path.join(settings.MEDIA_ROOT, dir_name, 'data')
+    metadata_path = os.path.join(data_dir, 'metadata.json')
+    meta = {}
+    if os.path.exists(metadata_path):
+        try:
+            with open(metadata_path, 'r') as f:
+                meta = json.load(f)
+        except Exception as e:
+            logger.error(f"_ensure_user_edited_metadata: failed to read metadata.json in '{dir_name}': {e}")
+            meta = {}
+
+    if not _get_user_edited_flag(meta):
+        meta['user_edited'] = True
+        try:
+            os.makedirs(data_dir, exist_ok=True)
+            with open(metadata_path, 'w') as f:
+                json.dump(meta, f, indent=2)
+            logger.info(f"Updated user_edited to True for '{dir_name}'")
+        except Exception as e:
+            logger.error(f"_ensure_user_edited_metadata: failed to write metadata.json for '{dir_name}': {e}")
+
 def _metadata_input_file_name(meta_data):
     value = meta_data.get('input_file_name')
     return value.strip() if isinstance(value, str) else ''
@@ -253,6 +290,7 @@ def prepare_results(request):
                 # Read metadata.json if it exists
                 metadata_path = os.path.join(dir_path, 'data', 'metadata.json')
                 input_file_url = None
+                user_edited = False
                 edit_file_url = _build_media_absolute_url(request, f"{dir_name}/data/edited_output.json")
                 if os.path.exists(metadata_path):
                     try:
@@ -261,6 +299,7 @@ def prepare_results(request):
                             inferred_input_relative = _infer_input_file_relative_path(dir_name, meta_data)
                             if inferred_input_relative:
                                 input_file_url = _build_media_absolute_url(request, inferred_input_relative)
+                            user_edited = _get_user_edited_flag(meta_data)
                     except Exception as e:
                         logger.error(f"Error reading metadata.json in {dir_name}: {e}")
 
@@ -286,7 +325,8 @@ def prepare_results(request):
                             'created_at': created_at,
                             'input_file_url': input_file_url,
                             'dir_name': dir_name,
-                            'edit_file_url': edit_file_url
+                            'edit_file_url': edit_file_url,
+                            'user_edited': user_edited
                         })
 
     responses.sort(key=lambda x: x['file_name'])
@@ -634,6 +674,7 @@ def edit_transcription_segment(request):
     try:
         with open(edit_file_path, 'w') as f:
             json.dump(edited_output, f, indent=2)
+        _ensure_user_edited_metadata(dir_name)
     except Exception as e:
         logger.error(f"edit_transcription_segment: failed to write edit file '{edit_file_path}': {e}")
         return JsonResponse({'error': 'Failed to write target edit file'}, status=500)
@@ -724,6 +765,7 @@ def save_note(request):
         notes.append(new_note)
         data['notes'] = notes
         _write_notes_file(notes_path, data)
+        _ensure_user_edited_metadata(dir_name)
     except Exception as e:
         logger.error(f"save_note: failed to write notes for '{dir_name}': {e}")
         return JsonResponse({'error': 'Failed to save note'}, status=500)

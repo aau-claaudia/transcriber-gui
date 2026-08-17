@@ -119,7 +119,8 @@ def transcription_task(self, model_size, language):
             # Write metadata.json
             metadata_content = {
                 "input_file_name": filename,
-                "input_file_converted": input_file_converted
+                "input_file_converted": input_file_converted,
+                "user_edited": False
             }
             metadata_file = os.path.join(data_dir, 'metadata.json')
             with open(metadata_file, 'w') as mf:

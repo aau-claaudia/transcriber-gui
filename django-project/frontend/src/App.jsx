@@ -357,7 +357,8 @@ function App() {
                 logFiles: [],
                 zipFile: null,
                 inputFileUrl: result.input_file_url,
-                editFileUrl: result.edit_file_url
+                editFileUrl: result.edit_file_url,
+                userEdited: result.user_edited
             };
             //console.debug(acc[dirName]);
         }
@@ -380,6 +381,27 @@ function App() {
         return acc;
     }, {});
 
+    const setUserEditedStatus = (transcriptionKey) => {
+        setResults(prevResults => {
+            const needsUpdate = prevResults.some(item => {
+                const dirName = item.dir_name || inferDirNameFromFileUrl(item.file_url);
+                return dirName === transcriptionKey && !item.user_edited;
+            });
+            if (!needsUpdate) {
+                // Return same array reference -> React bails out of re-rendering App
+                //console.debug("Transcription already edited by user - not re-rendering dashboard.")
+                return prevResults;
+            }
+            return prevResults.map(item => {
+                const dirName = item.dir_name || inferDirNameFromFileUrl(item.file_url);
+                if (dirName === transcriptionKey) {
+                    return { ...item, user_edited: true };
+                }
+                return item;
+            });
+        });
+    };
+
     // transform the rejected file data to group the files by the error type
     const groupedErrors = rejected.reduce((acc, file) => {
         file.errors.forEach(error => {
@@ -391,6 +413,7 @@ function App() {
         return acc;
     }, {});
 
+    // Derived list of rows extracted from groupedTranscriptions for dashboard rendering
     const transcriptionRows = Object.values(groupedTranscriptions);
 
     // Upload files and start a transcription on the server
@@ -682,6 +705,7 @@ function App() {
                                                     hour: '2-digit',
                                                     minute: '2-digit'
                                                 })}
+                                                    {row.userEdited && ` • Edited`}
                                                 </span>
                                             </div>
                                         </div>
@@ -832,6 +856,7 @@ function App() {
                     transcriptionData={groupedTranscriptions[selectedTranscriptionKey]}
                     onBackToDashboard={() => setCurrentPage('dashboard')}
                     onBackToEdit={() => setCurrentPage('edit')}
+                    onUpdateUserEditedStatus={setUserEditedStatus}
                 />
             )}
 

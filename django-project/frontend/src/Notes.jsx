@@ -245,7 +245,7 @@ const SegmentCard = ({
     );
 };
 
-const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackToEdit }) => {
+const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackToEdit, onUpdateUserEditedStatus }) => {
     const [notes, setNotes] = useState([]);
     const [segments, setSegments] = useState([]);
     const [loadingSegments, setLoadingSegments] = useState(true);
@@ -308,6 +308,7 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
             .then(data => {
                 console.debug("Edit successfully saved on backend:", data);
                 setSaveStatus('idle');
+                onUpdateUserEditedStatus(dirName);
             });
     };
 
@@ -651,6 +652,7 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                 // Server assigned the id — append at end (list is earliest-first)
                 setNotes(prev => [...prev, data.note]);
                 setNoteSaveStatus('idle');
+                onUpdateUserEditedStatus(dirName);
             })
             .catch(err => {
                 console.error('Failed to save note on server:', err);
