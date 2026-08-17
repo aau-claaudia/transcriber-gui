@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const EditPage = ({ transcriptionKey, transcriptionData, onBack, onOpenNotes }) => {
+const EditPage = ({ transcriptionKey, transcriptionData, onBack, onOpenNotes, onServerError}) => {
     const [notes, setNotes] = useState([]);
     const { logFiles, zipFile } = transcriptionData || {};
 
@@ -23,6 +23,7 @@ const EditPage = ({ transcriptionKey, transcriptionData, onBack, onOpenNotes }) 
             .catch(err => {
                 console.error('Failed to load notes from server:', err);
                 setNotes([]);
+                onServerError();
             });
     }, [transcriptionData?.name]);
 
@@ -47,6 +48,7 @@ const EditPage = ({ transcriptionKey, transcriptionData, onBack, onOpenNotes }) 
                 console.error('Failed to delete note on server:', err);
                 // Roll back on failure
                 setNotes(previousNotes);
+                onServerError();
             });
     };
 

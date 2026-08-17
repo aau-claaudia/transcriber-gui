@@ -245,7 +245,7 @@ const SegmentCard = ({
     );
 };
 
-const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackToEdit, onUpdateUserEditedStatus }) => {
+const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackToEdit, onUpdateUserEditedStatus, onServerError }) => {
     const [notes, setNotes] = useState([]);
     const [segments, setSegments] = useState([]);
     const [loadingSegments, setLoadingSegments] = useState(true);
@@ -478,6 +478,7 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
             .catch(err => {
                 console.error('Failed to load notes from server:', err);
                 setNotes([]);
+                onServerError();
             });
     }, [transcriptionData?.name]);
 

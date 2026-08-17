@@ -7,6 +7,7 @@ import EditPage from "./EditPage.jsx";
 import Notes from "./Notes.jsx";
 import transcriberImage from "./logo-transcriber.png";
 import UcloudFiles from "./UcloudFiles.jsx";
+import ErrorOverlay from "./ErrorOverlay.jsx";
 
 function App() {
     const formatDuration = (duration) => {
@@ -98,50 +99,63 @@ function App() {
     const [ucloudFolderMounted, setUcloudFolderMounted] = useState(getInitialBooleanState("ucloudFolderMounted", false));
     const [currentPage, setCurrentPage] = useState('dashboard');
     const [selectedTranscriptionKey, setSelectedTranscriptionKey] = useState(null);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         const fetchData = async () => {
-            const response = await fetch('/get-initialization-data/');
-            const initData = await response.json();
-            const fileList = initData.file_list;
-            const mountedFolder = initData.mounted_folder;
-            //console.debug('Scanned files from server:', fileList);
-            //console.debug('Mounted folder: ', mountedFolder);
-            sessionStorage.setItem("scannedFiles", JSON.stringify(fileList))
-            sessionStorage.setItem("ucloudFolderMounted", JSON.stringify(mountedFolder))
-            setScannedFiles(fileList)
-            setUcloudFolderMounted(mountedFolder);
+            try {
+                const response = await fetch('/get-initialization-data/');
+                if (!response.ok) {
+                    throw new Error(`Server returned HTTP ${response.status}: ${response.statusText}`);
+                }
+                const initData = await response.json();
+                const fileList = initData.file_list;
+                const mountedFolder = initData.mounted_folder;
+                //console.debug('Scanned files from server:', fileList);
+                //console.debug('Mounted folder: ', mountedFolder);
+                sessionStorage.setItem("scannedFiles", JSON.stringify(fileList))
+                sessionStorage.setItem("ucloudFolderMounted", JSON.stringify(mountedFolder))
+                setScannedFiles(fileList)
+                setUcloudFolderMounted(mountedFolder);
 
-            // get the size of the available memory
-            const memory = initData.available_memory;
-            console.debug('Available memory:', memory);
-            if (memory && !isNaN(parseFloat(memory))) {
-                const memoryParsed = parseFloat(memory);
-                setAvailableMemory(memoryParsed);
-                setModelSize(getDefaultModel(memoryParsed));
-            } else {
-                console.debug("Unable to parse available memory as float value. Defaulting to 16.0 GB.")
-                setAvailableMemory(16.0);
-                setModelSize("large-v3");
+                // get the size of the available memory
+                const memory = initData.available_memory;
+                console.debug('Available memory:', memory);
+                if (memory && !isNaN(parseFloat(memory))) {
+                    const memoryParsed = parseFloat(memory);
+                    setAvailableMemory(memoryParsed);
+                    setModelSize(getDefaultModel(memoryParsed));
+                } else {
+                    console.debug("Unable to parse available memory as float value. Defaulting to 16.0 GB.")
+                    setAvailableMemory(16.0);
+                    setModelSize("large-v3");
+                }
+            } catch (err) {
+                console.error('Error fetching initialization data:', err);
+                setError(new Error("There was an error communicating with the server. Please check that the UCloud job is still running."));
             }
         }
         // call the async function
-        fetchData()
-            // catch any error
-            .catch(console.error);
+        fetchData().catch(console.error);
     }, []); // Empty dependency array ensures this runs only once on component mount
 
     useEffect(() => {
         const fetchResults = async () => {
-            const response = await fetch('/get-completed-transcriptions/');
-            const data = await response.json();
-            console.debug('Already completed transcription returned from server:', data.result);
-            setResults(data.result)
+            try {
+                const response = await fetch('/get-completed-transcriptions/');
+                if (!response.ok) {
+                    throw new Error(`Server returned HTTP ${response.status}: ${response.statusText}`);
+                }
+                const data = await response.json();
+                console.debug('Already completed transcription returned from server:', data.result);
+                setResults(data.result)
+            } catch (err) {
+                console.error('Error fetching completed transcriptions:', err);
+                setError(new Error("There was an error communicating with the server. Please check that the UCloud job is still running."));
+            }
         }
         // call the async function
-        fetchResults()
-            // catch any error
-            .catch(console.error);
+        fetchResults().catch(console.error);
     }, []); // Empty dependency array ensures this runs only once on component mount
 
     useEffect(() => {
@@ -634,6 +648,10 @@ function App() {
         }
     });
 
+    const setServerConnectionError = () => {
+        setError(new Error("There was an error communicating with the server. Please check that the UCloud job is still running."));
+    }
+
     return (
         <div className="App">
             {/* Topbar */}
@@ -847,6 +865,7 @@ function App() {
                     transcriptionData={groupedTranscriptions[selectedTranscriptionKey]}
                     onBack={() => setCurrentPage('dashboard')}
                     onOpenNotes={() => setCurrentPage('notes')}
+                    onServerError={setServerConnectionError}
                 />
             )}
 
@@ -857,6 +876,7 @@ function App() {
                     onBackToDashboard={() => setCurrentPage('dashboard')}
                     onBackToEdit={() => setCurrentPage('edit')}
                     onUpdateUserEditedStatus={setUserEditedStatus}
+                    onServerError={setServerConnectionError}
                 />
             )}
 
@@ -881,6 +901,13 @@ function App() {
                     </div>
                 </div>
             )}
+
+            {/* Global Error Overlay */}
+            <ErrorOverlay
+                error={error}
+                onClose={() => setError(null)}
+                onRefresh={() => window.location.reload()}
+            />
         </div>
     );
 }
