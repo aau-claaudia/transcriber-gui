@@ -736,7 +736,7 @@ function App() {
                             <div className="file-list-group">
                                 {files.map((file, index) => (
                                     <div className="file-item" key={'local-' + index}>
-                                        <span className="file-name">🎵 {file.name}</span>
+                                        <span className="file-name">📥 {file.name}</span>
                                         <div className="file-item-actions">
                                             <button className="remove-btn" type="button" onClick={() => removeFile(file.name)}>Remove</button>
                                         </div>
