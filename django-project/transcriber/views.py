@@ -1,15 +1,12 @@
 from celery import chain
 from django.conf import settings
 from django.shortcuts import render
-from rest_framework.response import Response
-from rest_framework.parsers import MultiPartParser, FormParser
-from .serializers import FileUploadSerializer, MultipleFileUploadSerializer, MultipleFileMetaDataSerializer
+from django.http import JsonResponse, HttpResponse, Http404
+from django.views.decorators.csrf import csrf_exempt
+from transcriber.models import FileUpload
 import os
 import json
 from datetime import datetime, timezone
-from django.http import JsonResponse, HttpResponse, Http404
-from django.views.decorators.csrf import csrf_exempt
-from rest_framework.views import APIView
 from .tasks import transcription_task, shutdown_server_task
 from .model_memory_util import calculate_available_memory
 from .utils import convert_to_mp3
@@ -20,74 +17,93 @@ logger = logging.getLogger(__name__)
 def index(request):
     return render(request, 'frontend/build/index.html')
 
-class FileUploadView(APIView):
-    parser_classes = (MultiPartParser, FormParser)
+@csrf_exempt
+def upload_file(request):
+    """
+    POST /upload/
+    Multipart form data:
+      - files            : one or more uploaded audio/video files
+      - file_meta_data   : JSON string — [{name, size, filepath, target_path_sym_link}, ...]
+      - model            : whisper model name
+      - language         : language code
+      - transcribe_and_shutdown : 'true' | 'false'
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
 
-    def post(self, request, *args, **kwargs):
-        file_meta_data_list = []
-        if request.data and request.data.get('files') and request.data.get('file_meta_data'):
-            # parse drop zone file meta data
-            file_meta_data = request.data.get('file_meta_data')
-            if file_meta_data:
-                meta_data = json.loads(file_meta_data)
-                serializer = MultipleFileMetaDataSerializer(data={'files': meta_data})
-                if serializer.is_valid():
-                    file_meta_data_list = serializer.validated_data['files']
-            # parse uploaded file data
-            serializer = MultipleFileUploadSerializer(data=request.data)
-            if serializer.is_valid():
-                files = serializer.validated_data['files']
-                for file in files:
-                    file_serializer = FileUploadSerializer(data={'file': file})
-                    if file_serializer.is_valid():
-                        file_upload = file_serializer.save()
-                        # validate the file size sent by the client against the file size calculated by Django
-                        if not validate_file_size(file_upload.file.size, file_upload.file.name, file_meta_data_list):
-                            return Response("The file size of the uploaded file does not match the expected size.", status=400)
-                        file_upload.save()
-                    else:
-                        return Response(file_serializer.errors, status=400)
-            else:
-                return Response(serializer.errors, status=400)
-        # Get the model, language and shutdown flag from the request
-        model = request.data.get('model')
-        cleaned_model_name = clean_model_name(model)
+    files = request.FILES.getlist('files')
+    file_meta_data_raw = request.POST.get('file_meta_data')
 
-        language = request.data.get('language')
-        transcribe_and_shutdown = request.data.get('transcribe_and_shutdown')
+    if files and file_meta_data_raw:
+        try:
+            file_meta_data_list = json.loads(file_meta_data_raw)
+            if not isinstance(file_meta_data_list, list):
+                return JsonResponse({'error': 'file_meta_data must be a JSON array'}, status=400)
+            for entry in file_meta_data_list:
+                if not isinstance(entry, dict) or 'name' not in entry or 'size' not in entry:
+                    return JsonResponse({'error': 'Each file_meta_data entry must have name and size'}, status=400)
+        except (json.JSONDecodeError, ValueError):
+            return JsonResponse({'error': 'Invalid file_meta_data JSON'}, status=400)
 
-        if transcribe_and_shutdown == 'true':
-            # This gets the proces id of the parent proces
-            master_pid = os.getppid()
-            # Chain the transcription task with the shutdown task.
-            # The shutdown_server_task will only execute after transcription_task succeeds.
-            # Note: The result of the chain is the result of the *last* task in the chain.
-            task_chain = chain(transcription_task.s(cleaned_model_name, language), shutdown_server_task.s(master_pid))
-            # Start the chained Celery task
-            task = task_chain.apply_async()
-            return JsonResponse({'task_id': task.parent.id})
-        else:
-            # Start only the transcription task
-            task = transcription_task.delay(cleaned_model_name, language)
-            return JsonResponse({'task_id': task.id})
+        for f in files:
+            file_upload = FileUpload(file=f)
+            file_upload.save()
+            if not validate_file_size(file_upload.file.size, file_upload.file.name, file_meta_data_list):
+                return JsonResponse(
+                    {'error': 'The file size of the uploaded file does not match the expected size.'},
+                    status=400
+                )
+
+    model = request.POST.get('model', '')
+    cleaned_model_name = clean_model_name(model)
+    language = request.POST.get('language', '')
+    transcribe_and_shutdown = request.POST.get('transcribe_and_shutdown', 'false')
+
+    if transcribe_and_shutdown == 'true':
+        # This gets the process id of the parent process
+        master_pid = os.getppid()
+        # Chain the transcription task with the shutdown task.
+        # The shutdown_server_task will only execute after transcription_task succeeds.
+        # Note: The result of the chain is the result of the *last* task in the chain.
+        task_chain = chain(transcription_task.s(cleaned_model_name, language), shutdown_server_task.s(master_pid))
+        # Start the chained Celery task
+        task = task_chain.apply_async()
+        return JsonResponse({'task_id': task.parent.id})
+    else:
+        # Start only the transcription task
+        task = transcription_task.delay(cleaned_model_name, language)
+        return JsonResponse({'task_id': task.id})
 
 
-class LinkFilesView(APIView):
-    parser_classes = (MultiPartParser, FormParser)
+@csrf_exempt
+def link_files(request):
+    """
+    POST /link-files/
+    JSON body: [ {filepath, name, size, target_path_sym_link}, ... ]
+    Creates symlinks from filepath → target_path_sym_link for each entry.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
 
-    def post(self, request, *args, **kwargs):
-        files_json = request.data.get('files')
-        if files_json:
-            files_data = json.loads(files_json)
-            serializer = MultipleFileMetaDataSerializer(data={'files': files_data})
-            if serializer.is_valid():
-                file_meta_data = serializer.validated_data['files']
-                for file in file_meta_data:
-                    if not os.path.exists(file.get('target_path_sym_link')):
-                        os.symlink(file.get('filepath'), file.get('target_path_sym_link'))
-                return JsonResponse({'status': 'success'}, status=200)
-            return Response(serializer.errors, status=400)
-        return Response({'error': 'No files data provided'}, status=400)
+    try:
+        files_data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': 'Invalid JSON body'}, status=400)
+
+    if not isinstance(files_data, list):
+        return JsonResponse({'error': 'Request body must be a JSON array'}, status=400)
+
+    for file in files_data:
+        if not isinstance(file, dict):
+            return JsonResponse({'error': 'Each entry must be a JSON object'}, status=400)
+        source = file.get('filepath')
+        target = file.get('target_path_sym_link')
+        if not source or not target:
+            return JsonResponse({'error': 'Each entry must have filepath and target_path_sym_link'}, status=400)
+        if not os.path.exists(target):
+            os.symlink(source, target)
+
+    return JsonResponse({'status': 'success'}, status=200)
 
 def get_initialization_data(request):
     source_directory = settings.UCLOUD_DIRECTORY
@@ -140,21 +156,34 @@ def get_initialization_data(request):
 
     return JsonResponse(scan_info)
 
-class RemoveLinkView(APIView):
+@csrf_exempt
+def remove_link(request):
+    """
+    POST /remove-link/
+    JSON body: { "path": "<symlink path to remove>" }
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
 
-    def post(self, request, *args, **kwargs):
-        path = request.data.get('path')
-        if path:
-            try:
-                if os.path.islink(path):
-                    os.unlink(path)
-                    logger.info(f"Deleted symlink: {path}")
-                else:
-                    logger.info(f"Path is not a symlink: {path}")
-            except FileNotFoundError:
-                logger.warning(f"Symlink not found: {path}")
-            return JsonResponse({'status': 'success'}, status=200)
-        return Response({'error': 'No path provided'}, status=400)
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, AttributeError):
+        return JsonResponse({'error': 'Invalid JSON body'}, status=400)
+
+    path = body.get('path')
+    if not path:
+        return JsonResponse({'error': 'No path provided'}, status=400)
+
+    try:
+        if os.path.islink(path):
+            os.unlink(path)
+            logger.info(f"Deleted symlink: {path}")
+        else:
+            logger.info(f"Path is not a symlink: {path}")
+    except FileNotFoundError:
+        logger.warning(f"Symlink not found: {path}")
+
+    return JsonResponse({'status': 'success'}, status=200)
 
 def poll_transcription_status(request, task_id):
     # Get the task result

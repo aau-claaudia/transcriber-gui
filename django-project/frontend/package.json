@@ -10,26 +10,26 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "react-spinners": "^0.17.0",
-    "axios": "^1.13.4",
-    "react-dropzone": "^14.3.5"
+    "axios": "^1.19.0",
+    "react-dropzone": "^20.1.0"
   },
   "overrides": {
     "react": "$react",
     "react-dom": "$react-dom"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.2",
-    "@types/react": "^19.1.2",
-    "@types/react-dom": "^19.1.2",
+    "@eslint/js": "^9.39.4",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-basic-ssl": "^2.3.0",
-    "@vitejs/plugin-react": "^6.0.2",
-    "eslint": "^10.4.1",
+    "@vitejs/plugin-react": "^6.0.5",
+    "eslint": "^10.8.1",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^16.0.0",
-    "vite": "^8.0.16"
+    "eslint-plugin-react-refresh": "^0.5.4",
+    "globals": "^17.11.0",
+    "vite": "^8.2.1"
   }
 }

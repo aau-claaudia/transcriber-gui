@@ -562,11 +562,11 @@ function App() {
     const onAddUcloudFiles = async (filesToAdd) => {
         setErrorState(false);
         if (filesToAdd?.length > 0) {
-            let formData = new FormData();
-            formData.append('files', JSON.stringify(filesToAdd));
             try {
                 // call view to create the symlinks
-                const response = await axios.post('/link-files/', formData);
+                const response = await axios.post('/link-files/', filesToAdd, {
+                    headers: { 'Content-Type': 'application/json' },
+                });
                 // add the files to setScannedAndLinkedFiles
                 if (response.status === 200) {
                     let newFiles = filesToAdd.filter((file) =>
@@ -617,11 +617,11 @@ function App() {
 
     const removeUCloudLinkedFile = async (path) => {
         if (path) {
-            let formData = new FormData();
-            formData.append('path', path);
             try {
                 // call view to remove the symbolic link to the UCloud file
-                const response = await axios.post('/remove-link/', formData);
+                const response = await axios.post('/remove-link/', { path }, {
+                    headers: { 'Content-Type': 'application/json' },
+                });
                 if (response.status === 200) {
                     // remove the file in the list of linked files to update the UI
                     setScannedAndLinkedFiles(files => files.filter(file => file.target_path_sym_link !== path))
