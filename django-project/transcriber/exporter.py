@@ -25,9 +25,23 @@ def export(dir_name: str, file_path: str, target: str, output_format: str, merge
 
 
 def _export_notes(dir_name: str, file_path: str, output_format: str):
+    if output_format == "json":
+        # no processing needed, just return file path
+        return os.path.join(settings.MEDIA_ROOT, dir_name, 'data', 'notes.json')
+    data = {}
+    try:
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+    except Exception as e:
+        logger.error(f"Error reading data file for export: '{file_path}': {e}")
 
-
-    return ""
+    if output_format == "docx":
+        return _export_notes_docx(dir_name, data)
+    elif output_format == "txt":
+        return _export_notes_txt(dir_name, data)
+    else:
+        logger.error(f"Unknown export format: {output_format}")
+        return ""
 
 
 def _export_edited_output(dir_name: str, file_path: str, output_format: str, merged_format: bool) -> str:
@@ -57,7 +71,7 @@ def _export_edited_output(dir_name: str, file_path: str, output_format: str, mer
     elif output_format == "txt":
         return _export_edited_output_txt(dir_name, data)
     else:
-        logger.error(f"Unknown export format!")
+        logger.error(f"Unknown export format: {output_format}")
         return ""
 
 
@@ -80,7 +94,50 @@ def _export_edited_output_docx(dir_name: str, data: dict):
     return output_file_path
 
 def _export_edited_output_txt(dir_name: str, data: dict):
-    return ""
+    output_file_path = os.path.join(settings.MEDIA_ROOT, dir_name, 'data', 'edited_output.txt')
+    try:
+        output_lines = []
+        for line in data["lines"]:
+            speaker = extract_speaker(line).strip()
+            output_lines.append(f"{line["startTime"]} - {line["endTime"]} \t {speaker}\n")
+            output_lines.append(f"\t {line["text"]}\n")
+        with open(output_file_path, 'w') as f:
+            f.writelines(output_lines)
+    except Exception as e:
+        logger.error(f"Error exporting txt document: {e}")
+        return ""
+    return output_file_path
+
+
+def _export_notes_docx(dir_name: str, data: dict):
+    output_file_path = os.path.join(settings.MEDIA_ROOT, dir_name, 'data', 'notes.docx')
+    try:
+        document = docx.Document()
+        p = document.add_paragraph()
+        for line in data["notes"]:
+            p.add_run(f"{line["date"]}\n")
+            p.add_run(f"{line["note"]}\n\n")
+        document.save(output_file_path)
+    except Exception as e:
+        logger.error(f"Error exporting notes in word document: {e}")
+        return ""
+    return output_file_path
+
+
+def _export_notes_txt(dir_name: str, data: dict):
+    output_file_path = os.path.join(settings.MEDIA_ROOT, dir_name, 'data', 'notes.txt')
+    try:
+        output_lines = []
+        for line in data["notes"]:
+            output_lines.append(f"{line["date"]}\n")
+            output_lines.append(f"{line["note"]}\n\n")
+        with open(output_file_path, 'w') as f:
+            f.writelines(output_lines)
+    except Exception as e:
+        logger.error(f"Error exporting notes in txt format: {e}")
+        return ""
+    return output_file_path
+
 
 def _merge_speakers(edit_output_path: str) -> dict:
     merged_data = {"lines": []}

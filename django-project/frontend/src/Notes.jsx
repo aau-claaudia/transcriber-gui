@@ -996,7 +996,7 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                             notes.map(note => (
                                 <div className="note-item" key={note.id}>
                                     <div className="note-header">
-                                        <span>📅 {new Date(note.date).toLocaleString()}</span>
+                                        <span>📅 {note.date}</span>
                                         <button
                                             className="note-delete-btn"
                                             onClick={() => handleDeleteNote(note.id)}

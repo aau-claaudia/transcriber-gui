@@ -794,8 +794,7 @@ def save_note(request):
         next_id = (max(n['id'] for n in notes if isinstance(n.get('id'), int)) + 1) if notes else 1
         new_note = {
             'id': next_id,
-            'date': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.') +
-                    f"{datetime.now(timezone.utc).microsecond // 1000:03d}Z",
+            'date': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.'),
             'note': note_text.strip()
         }
         notes.append(new_note)
