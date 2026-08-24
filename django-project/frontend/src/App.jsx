@@ -153,6 +153,10 @@ function App() {
                 console.error('Error fetching completed transcriptions:', err);
                 setError(new Error("There was an error communicating with the server. Please check that the UCloud job is still running."));
             }
+            // if a transcription is underway, show the upload page
+            if (transcribing) {
+                setCurrentPage("upload");
+            }
         }
         // call the async function
         fetchResults().catch(console.error);
@@ -286,6 +290,7 @@ function App() {
                         setServerStopped(true);
                     } else {
                         console.error('Error polling task:', error);
+                        setError(new Error("There was an error communicating with the server. Please check that the UCloud job is still running."));
                     }
                 });
         } else {
