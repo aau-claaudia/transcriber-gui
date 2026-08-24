@@ -24,7 +24,7 @@ source .venv/bin/activate
 ```
 Now install the needed python libraries
 ``` bash
-pip install django django-cors-headers celery redis python-dotenv torch
+pip install django django-cors-headers celery redis python-dotenv torch python-docx
 ```
 
 Create the folders for managing file uploads and output

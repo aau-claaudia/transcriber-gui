@@ -11,6 +11,7 @@ from .tasks import transcription_task, shutdown_server_task
 from .model_memory_util import calculate_available_memory
 from .utils import convert_to_mp3
 import logging
+from transcriber.exporter import export
 
 logger = logging.getLogger(__name__)
 
@@ -431,18 +432,24 @@ def export_file(request):
     dir_name = request.GET.get('dir_name', '').strip()
     target = request.GET.get('target', 'edited_output').strip()
     export_format = request.GET.get('format', 'json').strip().lower()
+    merged_format = request.GET.get('merged', 'off').strip().lower()
+    merged = False
+    if merged_format == "on":
+        merged = True
 
     if not dir_name:
         return JsonResponse({'error': 'dir_name parameter is required'}, status=400)
 
-    # Determine target file name based on target parameter
+    # Determine target file path based on target parameter
     target_filename = 'notes.json' if target == 'notes' else 'edited_output.json'
-    file_path = os.path.join(settings.MEDIA_ROOT, dir_name, 'data', target_filename)
-
+    target_file_path = os.path.join(settings.MEDIA_ROOT, dir_name, 'data', target_filename)
+    # Call export module
+    file_path = export(dir_name, target_file_path, target, export_format, merged)
     if not os.path.exists(file_path):
-        raise Http404(f"Export file {target_filename} not found for directory '{dir_name}'.")
+        logger.error(f"Export file {file_path} not found for directory '{dir_name}'.")
+        return JsonResponse({'error': 'There was an error generating the export file.'}, status=400)
 
-    download_name = f"{dir_name}_{target}.{export_format if export_format in ['json', 'txt', 'docx'] else 'json'}"
+    download_name = f"{dir_name}_{target}{'_merged' if merged else ''}.{export_format if export_format in ['json', 'txt', 'docx'] else 'json'}"
 
     try:
         with open(file_path, 'rb') as f:
