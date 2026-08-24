@@ -1042,9 +1042,9 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                             }}>
                                 Select Content to Export
                             </label>
-                            <div className="export-radio-group">
+                            <div className="export-radio-group horizontal">
                                 <label
-                                    className={`export-radio-card ${exportTarget === 'edited_output' ? 'selected' : ''}`}>
+                                    className={`export-radio-card compact ${exportTarget === 'edited_output' ? 'selected' : ''}`}>
                                     <input
                                         type="radio"
                                         name="exportTarget"
@@ -1052,13 +1052,10 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                                         checked={exportTarget === 'edited_output'}
                                         onChange={(e) => setExportTarget(e.target.value)}
                                     />
-                                    <div className="export-radio-details">
-                                        <span className="export-radio-title">Edited Output</span>
-                                        <span
-                                            className="export-radio-sub">../{transcriptionData?.name || '...'}/data/edited_output.json</span>
-                                    </div>
+                                    <span>&nbsp;&nbsp; Edited Output</span>
                                 </label>
-                                <label className={`export-radio-card ${exportTarget === 'notes' ? 'selected' : ''}`}>
+                                <label
+                                    className={`export-radio-card compact ${exportTarget === 'notes' ? 'selected' : ''}`}>
                                     <input
                                         type="radio"
                                         name="exportTarget"
@@ -1066,11 +1063,7 @@ const Notes = ({ transcriptionKey, transcriptionData, onBackToDashboard, onBackT
                                         checked={exportTarget === 'notes'}
                                         onChange={(e) => setExportTarget(e.target.value)}
                                     />
-                                    <div className="export-radio-details">
-                                        <span className="export-radio-title">Notes</span>
-                                        <span
-                                            className="export-radio-sub">../{transcriptionData?.name || '...'}/data/notes.json</span>
-                                    </div>
+                                    <span>&nbsp;&nbsp; Notes</span>
                                 </label>
                             </div>
                         </div>
