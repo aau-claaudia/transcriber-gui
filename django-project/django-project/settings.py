@@ -156,12 +156,12 @@ UCLOUD_DIRECTORY = BASE_DIR / 'ucloud'
 # - Otherwise fall back to default media root. Will be /work for UCloud
 folder_mounted, folder_name = _has_usable_subdirectory(UCLOUD_DIRECTORY)
 if folder_mounted and PROD:
-    media_root_candidate = UCLOUD_DIRECTORY / folder_name
+    media_root_candidate = Path(UCLOUD_DIRECTORY) / folder_name
     if _has_transcriptions_subdirectory(media_root_candidate):
         # if this directory has a "TRANSCRIPTIONS" folder in it, use the parent folder as MEDIA_ROOT
         MEDIA_ROOT = UCLOUD_DIRECTORY
     else:
-        MEDIA_ROOT = UCLOUD_DIRECTORY / folder_name
+        MEDIA_ROOT = Path(UCLOUD_DIRECTORY) / folder_name
 else:
     MEDIA_ROOT = DEFAULT_MEDIA_ROOT
 # create UPLOADS folder in MEDIA_ROOT
