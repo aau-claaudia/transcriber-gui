@@ -26,6 +26,7 @@ ALLOWED_HOSTS = ['*']
 
 SECRET_KEY = os.environ.get('SECRET_KEY')
 DEBUG = os.environ.get('DEBUG') == 'True'
+PROD = os.environ.get('PROD') == 'True'
 DJANGO_LOG_HANDLER = os.environ.get('DJANGO_LOG_HANDLER', 'console')
 DJANGO_LOG_FILE = os.environ.get('DJANGO_LOG_FILE', '/var/log/django/app.log')
 MEMORY_IN_GIGS = os.environ.get('MEMORY_IN_GIGS', '16')
@@ -116,6 +117,20 @@ USE_I18N = True
 
 USE_TZ = True
 
+def _has_usable_subdirectory(directory_path: Path):
+    # Iterate through the entries in the directory
+    for entry in os.scandir(directory_path):
+        # Check if the entry is a directory
+        if entry.is_dir() and entry.name != 'UPLOADS':
+            return True, entry.name
+    return False, ''
+
+def _has_transcriptions_subdirectory(directory_path: Path):
+    # Iterate through the entries in the directory
+    for entry in os.scandir(directory_path):
+        if entry.is_dir() and entry.name == 'TRANSCRIPTIONS':
+            return True
+    return False
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
@@ -132,9 +147,26 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_URL = '/media/'
 
-MEDIA_ROOT = BASE_DIR / 'media'
+DEFAULT_MEDIA_ROOT = BASE_DIR / 'media'
 
 UCLOUD_DIRECTORY = BASE_DIR / 'ucloud'
+
+# Resolve MEDIA_ROOT at startup:
+# - If UCLOUD_DIRECTORY is mounted and usable, use it. (The user started job with folder added).
+# - Otherwise fall back to default media root. Will be /work for UCloud
+folder_mounted, folder_name = _has_usable_subdirectory(UCLOUD_DIRECTORY)
+if folder_mounted and PROD:
+    media_root_candidate = UCLOUD_DIRECTORY / folder_name
+    if _has_transcriptions_subdirectory(media_root_candidate):
+        # if this directory has a "TRANSCRIPTIONS" folder in it, use the parent folder as MEDIA_ROOT
+        MEDIA_ROOT = UCLOUD_DIRECTORY
+    else:
+        MEDIA_ROOT = UCLOUD_DIRECTORY / folder_name
+else:
+    MEDIA_ROOT = DEFAULT_MEDIA_ROOT
+# create UPLOADS folder in MEDIA_ROOT
+uploads_folder_path: str = os.path.join(MEDIA_ROOT, 'UPLOADS/INPUT')
+os.makedirs(uploads_folder_path, exist_ok=True)
 
 FILE_UPLOAD_MAX_MEMORY_SIZE = 50000000000
 

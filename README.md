@@ -45,6 +45,7 @@ DJANGO_LOG_HANDLER='console'
 DJANGO_LOG_LEVEL='DEBUG'
 DJANGO_LOG_FILE='/home/nikko/projects/transcriber-gui/django.log'
 MEMORY_IN_GIGS=64
+PROD=False
 ```
 Next prepare the database and start the django development server
 ``` bash

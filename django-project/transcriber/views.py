@@ -124,6 +124,7 @@ def get_initialization_data(request):
 
     if mounted_folder:
         logger.info("UCloud mounted folder detected.")
+        logger.info(f"MEDIA_ROOT: {settings.MEDIA_ROOT}")
         for root, dirs, files in os.walk(source_directory):
             # Don't look in the 'UPLOADS' or 'COMPLETED' directories (used for user uploaded files and already completed)
             if 'UPLOADS' in dirs:
@@ -500,7 +501,7 @@ def has_subdirectories(directory_path):
     # Iterate through the entries in the directory
     for entry in os.scandir(directory_path):
         # Check if the entry is a directory
-        if entry.is_dir():
+        if entry.is_dir() and entry.name != 'UPLOADS':
             return True
     return False
 
