@@ -164,9 +164,12 @@ if folder_mounted and PROD:
         MEDIA_ROOT = Path(UCLOUD_DIRECTORY) / folder_name
 else:
     MEDIA_ROOT = DEFAULT_MEDIA_ROOT
-# create UPLOADS folder in MEDIA_ROOT
-uploads_folder_path: str = os.path.join(MEDIA_ROOT, 'UPLOADS/INPUT')
-os.makedirs(uploads_folder_path, exist_ok=True)
+# Only create UPLOADS at startup when a real user folder is mounted ();
+# otherwise get_initialization_data() in views.py handles it at request time.
+# (manage.py migrate && collectstatic -> runs settings.py)
+if folder_mounted and PROD:
+    uploads_folder_path: str = os.path.join(MEDIA_ROOT, 'UPLOADS/INPUT')
+    os.makedirs(uploads_folder_path, exist_ok=True)
 
 FILE_UPLOAD_MAX_MEMORY_SIZE = 50000000000
 

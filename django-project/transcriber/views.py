@@ -108,6 +108,7 @@ def link_files(request):
 
 def get_initialization_data(request):
     source_directory = settings.UCLOUD_DIRECTORY
+    # target directory for symlinks (for scanned files in UCloud mounted folder)
     target_directory = os.path.join(settings.MEDIA_ROOT, 'UPLOADS/INPUT')
     scan_info = {}
     file_list = []
@@ -116,7 +117,7 @@ def get_initialization_data(request):
     mounted_folder = has_subdirectories(source_directory)
     scan_info['mounted_folder'] = mounted_folder
 
-    # Ensure the target directory exists
+    # Ensure the target directory exists; create UPLOADS/INPUT directory if it doesn't exist
     os.makedirs(target_directory, exist_ok=True)
 
     # Define the allowed file extensions
@@ -369,13 +370,7 @@ def stop_transcription_task(request, task_id):
     return JsonResponse({'status': 'Task aborted successfully'})
 
 def serve_file(request, path):
-    # Determine the base directory based on the URL prefix
-    if request.path.startswith('/work/'):
-        base_dir = '/work'  # the files are saved here on UCloud
-    elif 'media/' in request.path:
-        base_dir = settings.MEDIA_ROOT
-    else:
-        raise Http404("File not found")
+    base_dir = settings.MEDIA_ROOT
 
     # Construct the full file path
     file_path = os.path.join(base_dir, path)
