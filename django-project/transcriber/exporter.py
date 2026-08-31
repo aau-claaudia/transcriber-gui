@@ -81,12 +81,12 @@ def _export_edited_output_docx(dir_name: str, data: dict):
         document = docx.Document()
         p = document.add_paragraph()
         for line in data["lines"]:
-            time = p.add_run(f"{line["startTime"]} - {line["endTime"]}")
+            time = p.add_run(f"{line['startTime']} - {line['endTime']}")
             time.italic = True
             p.add_run("\t")
             p.add_run(f'{extract_speaker(line).strip()}\n')
             p.add_run("\t")
-            p.add_run(f'{line["text"].strip()}\n')
+            p.add_run(f"{line['text'].strip()}\n")
         document.save(output_file_path)
     except Exception as e:
         logger.error(f"Error exporting word document: {e}")
@@ -99,8 +99,8 @@ def _export_edited_output_txt(dir_name: str, data: dict):
         output_lines = []
         for line in data["lines"]:
             speaker = extract_speaker(line).strip()
-            output_lines.append(f"{line["startTime"]} - {line["endTime"]} \t {speaker}\n")
-            output_lines.append(f"\t {line["text"]}\n")
+            output_lines.append(f"{line['startTime']} - {line['endTime']} \t {speaker}\n")
+            output_lines.append(f"\t {line['text']}\n")
         with open(output_file_path, 'w') as f:
             f.writelines(output_lines)
     except Exception as e:
@@ -115,8 +115,8 @@ def _export_notes_docx(dir_name: str, data: dict):
         document = docx.Document()
         p = document.add_paragraph()
         for line in data["notes"]:
-            p.add_run(f"{line["date"]}\n")
-            p.add_run(f"{line["note"]}\n\n")
+            p.add_run(f"{line['date']}\n")
+            p.add_run(f"{line['note']}\n\n")
         document.save(output_file_path)
     except Exception as e:
         logger.error(f"Error exporting notes in word document: {e}")
@@ -129,8 +129,8 @@ def _export_notes_txt(dir_name: str, data: dict):
     try:
         output_lines = []
         for line in data["notes"]:
-            output_lines.append(f"{line["date"]}\n")
-            output_lines.append(f"{line["note"]}\n\n")
+            output_lines.append(f"{line['date']}\n")
+            output_lines.append(f"{line['note']}\n\n")
         with open(output_file_path, 'w') as f:
             f.writelines(output_lines)
     except Exception as e:
@@ -174,8 +174,8 @@ def _merge_speakers(edit_output_path: str) -> dict:
                 else:
                     # add the text to the previous line
                     merged_data["lines"][-1]["text"] = (merged_data["lines"][-1]["text"].strip()
-                                                                      + " "
-                                                                      + line["text"].strip())
+                                                        + " "
+                                                        + line["text"].strip())
                     # push the end time forward
                     merged_data["lines"][-1]["endTime"] = line["endTime"]
 

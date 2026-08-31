@@ -24,7 +24,7 @@ source .venv/bin/activate
 ```
 Now install the needed python libraries
 ``` bash
-pip install django django-cors-headers celery redis python-dotenv torch python-docx
+pip install django django-cors-headers celery redis python-dotenv torch python-docx pytest
 ```
 
 Create the folders for managing file uploads and output
@@ -82,3 +82,9 @@ In a new terminal start the Vite development server
 cd transcriber-gui/django-project/frontend/
 npm run dev
 ```
+
+Run tests
+``` bash
+(.venv) nikko@nikkoAtClaaudia:~/projects/transcriber-gui$ pytest -v --ignore=django-project/transcriber/aau-whisper/
+```
+

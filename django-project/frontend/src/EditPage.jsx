@@ -201,7 +201,7 @@ const EditPage = ({ transcriptionKey, transcriptionData, onBack, onOpenNotes, on
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
                             <h3 style={{ margin: 0 }}>📝 Notes & Annotation</h3>
                             <button className="btn btn-primary" onClick={onOpenNotes} style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}>
-                                📝 Handle Notes
+                                📝 Edits & Notes
                             </button>
                         </div>
                         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
