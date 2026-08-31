@@ -123,10 +123,17 @@ const SegmentCard = ({
         setSelectionState({ text: '', isOpen: false });
     };
 
-    const handleCorrectiveInputKeyDown = (e) => {
+    const handleCorrectiveInputKeyDown = (e, editMode) => {
         if (e.key === 'Escape') {
             e.preventDefault();
             handleCancel();
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (editMode) {
+                handleApplyEdit();
+            } else {
+                handleSaveNote();
+            }
         }
     };
 
@@ -224,7 +231,7 @@ const SegmentCard = ({
                         placeholder={editMode ? "Enter replacement text..." : "Enter corrective note / comments..."}
                         value={correctiveText}
                         onChange={(e) => setCorrectiveText(e.target.value)}
-                        onKeyDown={handleCorrectiveInputKeyDown}
+                        onKeyDown={(e) => handleCorrectiveInputKeyDown(e, editMode)}
                         autoFocus
                     />
                     <div className="form-actions">
