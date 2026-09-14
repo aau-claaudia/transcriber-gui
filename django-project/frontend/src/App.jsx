@@ -270,7 +270,9 @@ function App() {
                         if (files.length > 0 || scannedAndLinkedFiles.length > 0) {
                             setButtonDisabled(false);
                         }
-                        setCurrentPage('dashboard')
+                        if (!transcribeAndShutdown) {
+                            setCurrentPage('dashboard')
+                        }
                     } else if (data.state === 'FAILURE') {
                         setTranscriptionId(null);
                         setTranscribing(false);
