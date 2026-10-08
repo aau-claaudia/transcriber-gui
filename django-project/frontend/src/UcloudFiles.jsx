@@ -60,7 +60,7 @@ const UcloudFiles = ({ onAddUcloudFiles, scannedFiles, onScan, scanning}) => {
                     <h3>Select UCloud files</h3>
                     <button
                         type='button'
-                        style={{width: '200px'}}
+                        style={{width: '200px', marginBottom: '15px'}}
                         onClick={addULoudFiles}
                         className='transcribe-button'
                         disabled={selectedFiles.length === 0}
@@ -109,8 +109,8 @@ const UcloudFiles = ({ onAddUcloudFiles, scannedFiles, onScan, scanning}) => {
                                     <td><input type="checkbox"
                                                onChange={() => handleAddFile(file, index)}
                                                checked={!!checkedFiles[index]}/></td>
-                                    <td className="file-name-scan" title={file.name}>{file.name}</td>
-                                    <td className="file-name-scan" title={file.filepath}>{file.filepath}</td>
+                                    <td className="ucloud-file" title={file.name}>{file.name}</td>
+                                    <td className="ucloud-file" title={file.filepath}>{file.filepath}</td>
                                     <td>{(file.size / 1000000).toFixed(2)}</td>
                                 </tr>
                             ))}

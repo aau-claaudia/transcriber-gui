@@ -44,9 +44,39 @@ export default defineConfig({
                 changeOrigin: true,
                 secure: false,
             },
+            '/convert-audio': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false,
+            },
+            '/edit-transcription-segment': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false,
+            },
+            '/get-notes': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false,
+            },
+            '/save-note': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false,
+            },
+            '/delete-note': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false,
+            },
+            '/export-file': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false,
+            },
             // Proxy media file requests to the Django/Daphne server.
-            // Match any URL that contains '/media/TRANSCRIPTIONS/'
-            '^.*(/media/TRANSCRIPTIONS/.*)$': {
+            // Match any URL that contains '/media/'
+            '^.*(/media/.*)$': {
                 target: 'http://localhost:8000',
                 //target: 'http://10.49.223.156:8000',
                 changeOrigin: true,

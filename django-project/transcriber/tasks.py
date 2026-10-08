@@ -5,9 +5,11 @@ import os
 import shutil
 import signal
 import logging
+import json
 from pathlib import Path
 
 from django.conf import settings
+from .utils import convert_to_mp3
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +17,10 @@ logger = logging.getLogger(__name__)
 def transcription_task(self, model_size, language):
     logger.info('Starting the transcription task now...')
     directory_path: str = os.path.join(settings.MEDIA_ROOT, 'UPLOADS/INPUT')
-    output_dir_path: str = os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS/')
+
+    # Use a temporary output directory during the transcription run
+    output_dir_path: str = os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS_TEMP')
+    os.makedirs(output_dir_path, exist_ok=True)
     transcriber_output_file: str = os.path.join(output_dir_path, "transcriber_output.txt")
     process = None  # Initialize the process variable
 
@@ -41,6 +46,92 @@ def transcription_task(self, model_size, language):
         # Capture the output and error after the process completes
         output, error = process.communicate()
         write_transcriber_output(error, output, transcriber_output_file, directory_path, model_size)
+
+        # Distribute files to separate directories for each input file
+        input_files = [f for f in os.listdir(directory_path) if os.path.isfile(os.path.join(directory_path, f))]
+        for filename in input_files:
+            filename_without_ext, _ = os.path.splitext(filename)
+            base_transcription_key = f"{filename_without_ext}_{model_size}_{language}"
+            transcription_key = build_unique_transcription_key(settings.MEDIA_ROOT, base_transcription_key)
+            transcription_dir = os.path.join(settings.MEDIA_ROOT, transcription_key)
+
+            trans_dir = os.path.join(transcription_dir, 'TRANSCRIPTIONS')
+            data_dir = os.path.join(transcription_dir, 'data')
+
+            os.makedirs(trans_dir, exist_ok=True)
+            os.makedirs(data_dir, exist_ok=True)
+
+            # convert input file if needed or copy/move input file to data
+            input_file_converted = False
+            src_file = os.path.join(directory_path, filename)
+            dst_file = os.path.join(data_dir, filename)
+            # is the input file format usable by the UI to handle edit functionality
+            input_file_format_supported = src_file.lower().endswith((".mp3", ".wav"))
+            if not input_file_format_supported:
+                # convert file to supported format
+                converted_file = os.path.join(data_dir, "converted_audio.mp3")
+                success, _ = convert_to_mp3(src_file, converted_file)
+                if not success:
+                    logger.warning(f"convert_audio: ffmpeg conversion failed for '{src_file}'")
+                    shutil.copy(src_file, dst_file)
+                else:
+                    input_file_converted = True
+            else:
+                # format supported, either move or copy (real file / symlink)
+                if os.path.isfile(src_file) and not os.path.islink(src_file):
+                    # move file
+                    shutil.move(src_file, dst_file)
+                    logger.info(f"Moved input file: {src_file} to {dst_file}")
+                else:
+                    # copy file
+                    shutil.copy(src_file, dst_file)
+                    logger.info(f"Copied input file: {src_file} to {dst_file}")
+
+            # Move matching output files from TRANSCRIPTIONS_TEMP to TRANSCRIPTIONS
+            for out_item in os.listdir(output_dir_path):
+                if out_item.startswith(filename_without_ext):
+                    src_out = os.path.join(output_dir_path, out_item)
+                    dst_out = os.path.join(trans_dir, out_item)
+                    shutil.move(src_out, dst_out)
+
+            # Copy transcription output log files and zip archive
+            for file_to_copy in ["transcriber_output.txt", "transcribe.log", "files.zip"]:
+                src_path = os.path.join(output_dir_path, file_to_copy)
+                if os.path.exists(src_path):
+                    shutil.copy(src_path, os.path.join(trans_dir, file_to_copy))
+
+            # Copy .dote.json to /data/edited_output.json
+            edit_file_name = "edited_output.json"
+            edited_output_file = os.path.join(data_dir, edit_file_name)
+            dote_file = next(
+                (
+                    os.path.join(trans_dir, item)
+                    for item in os.listdir(trans_dir)
+                    if item.endswith(".dote.json") and not item.endswith("_merged.dote.json")
+                ),
+                None,
+            )
+            if os.path.exists(src_path):
+                shutil.copy(dote_file, edited_output_file)
+            # annotate output file for editing with ids
+            annotate_with_ids(edited_output_file)
+
+            # Write metadata.json
+            metadata_content = {
+                "input_file_name": filename,
+                "input_file_converted": input_file_converted,
+                "user_edited": False
+            }
+            metadata_file = os.path.join(data_dir, 'metadata.json')
+            with open(metadata_file, 'w') as mf:
+                json.dump(metadata_content, mf, indent=4)
+
+        # clean /UPLOADS/INPUT folder
+        input_folder = Path(directory_path)
+        for p in input_folder.iterdir():
+            if p.is_file() or p.is_symlink():
+                p.unlink()
+
     except subprocess.CalledProcessError as e:
         write_transcriber_output(e.stderr, e.stdout, transcriber_output_file, directory_path, model_size)
 
@@ -55,17 +146,9 @@ def transcription_task(self, model_size, language):
             # clean up the input files
             clean_dir(directory_path)
 
-    # moved uploaded files from the input directory to COMPLETED folder
-    transcribed_path: str = os.path.join(settings.MEDIA_ROOT, 'COMPLETED')
-    os.makedirs(transcribed_path, exist_ok=True)
-
-    for item in os.listdir(directory_path):
-        source_path = os.path.join(directory_path, item)
-        target_path = os.path.join(transcribed_path, item)
-        # Check if the item is a file (not a directory)
-        if os.path.isfile(source_path):
-            shutil.move(source_path, target_path)
-            logging.info(f"Moved file: {source_path} to {target_path}")
+        # Clean up the TRANSCRIPTIONS_TEMP directory
+        if os.path.exists(output_dir_path):
+            shutil.rmtree(output_dir_path)
 
     return "Task completed"
 
@@ -111,3 +194,28 @@ def clean_dir(directory):
         if os.path.isfile(source_path):
             os.remove(source_path)
             #logging.debug(f"Removed file: {source_path}")
+
+def annotate_with_ids(file_path):
+    try:
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+
+        for i, line in enumerate(data.get('lines', [])):
+            data['lines'][i] = {'id': i, **line}
+
+        with open(file_path, 'w') as f:
+            json.dump(data, f, indent=2)
+
+    except Exception as e:
+        logger.error(f"Error when creating IDs for output file for editing '{file_path}': {e}")
+
+def build_unique_transcription_key(media_root: str, base_key: str) -> str:
+    """Return a collision-safe key by appending _runN when needed."""
+    candidate = base_key
+    suffix = 2
+
+    while os.path.exists(os.path.join(media_root, candidate)):
+        candidate = f"{base_key}_run{suffix}"
+        suffix += 1
+
+    return candidate

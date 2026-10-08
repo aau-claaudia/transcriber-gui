@@ -24,7 +24,7 @@ source .venv/bin/activate
 ```
 Now install the needed python libraries
 ``` bash
-pip install django djangorestframework django-cors-headers celery redis python-dotenv torch
+pip install django django-cors-headers celery redis python-dotenv torch python-docx pytest
 ```
 
 Create the folders for managing file uploads and output
@@ -45,8 +45,9 @@ DJANGO_LOG_HANDLER='console'
 DJANGO_LOG_LEVEL='DEBUG'
 DJANGO_LOG_FILE='/home/nikko/projects/transcriber-gui/django.log'
 MEMORY_IN_GIGS=64
+PROD=False
 ```
-Next migrate the database and start the development server
+Next prepare the database and start the django development server
 ``` bash
 cd django-project
 python manage.py makemigrations transcriber
@@ -59,25 +60,31 @@ In a new terminal start a celery worker (for consuming transcription tasks)
 cd transcriber-gui
 source .venv/bin/activate
 cd django-project
-python -m celery -A django-project worker
+python -m celery -A django-project worker -l info --concurrency=1
 ```
 
 Checkout and install the transcriber Python application
 ``` bash
 cd transcriber
-git clone --depth 1 --single-branch --recursive --shallow-submodules -b "V1.19" https://github.com/aau-claaudia/transcriber.git aau-whisper
+git clone --depth 1 --single-branch --recursive --shallow-submodules -b "V1.22" https://github.com/aau-claaudia/transcriber.git aau-whisper
 cd aau-whisper
 pip install -e .
 ```
 
-We also need to install a few npm packages
+We also need to install the required npm packages
 ``` bash
 cd transcriber-gui/django-project/frontend
-npm install react-scripts react-dropzone axios react-spinners
+npm install
 ```
 
-In a new terminal start the React development server
+In a new terminal start the Vite development server
 ``` bash
 cd transcriber-gui/django-project/frontend/
-npm start
+npm run dev
 ```
+
+Run tests
+``` bash
+(.venv) nikko@nikkoAtClaaudia:~/projects/transcriber-gui$ pytest -v --ignore=django-project/transcriber/aau-whisper/
+```
+
