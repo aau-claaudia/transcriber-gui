@@ -672,7 +672,7 @@ function App() {
                         className="btn btn-primary"
                         onClick={() => setCurrentPage(currentPage === 'upload' ? 'dashboard' : 'upload')}
                     >
-                        {currentPage === 'upload' ? '← Back to Dashboard' : '+ New Transcription'}
+                        {currentPage === 'upload' ? '← Back to Dashboard' : transcribing ? 'Transcription status' : '+ New Transcription'}
                     </button>
                     <button
                         className="btn btn-secondary"
