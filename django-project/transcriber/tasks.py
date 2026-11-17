@@ -18,6 +18,23 @@ def transcription_task(self, model_size, language):
     logger.info('Starting the transcription task now...')
     directory_path: str = os.path.join(settings.MEDIA_ROOT, 'UPLOADS/INPUT')
 
+    # update metadate about the transcription for use when polling status from a fresh session
+    metadata_file_list = [
+        {
+            "name": path.name,
+            "size": path.stat().st_size
+        }
+        for path in Path(directory_path).iterdir()
+        if path.is_file()
+    ]
+    self.update_state(
+        state="STARTED",
+        meta = {
+            "files": metadata_file_list,
+            "total_size": sum(file["size"] for file in metadata_file_list),
+        },
+    )
+
     # Use a temporary output directory during the transcription run
     output_dir_path: str = os.path.join(settings.MEDIA_ROOT, 'TRANSCRIPTIONS_TEMP')
     os.makedirs(output_dir_path, exist_ok=True)

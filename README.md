@@ -60,7 +60,7 @@ In a new terminal start a celery worker (for consuming transcription tasks)
 cd transcriber-gui
 source .venv/bin/activate
 cd django-project
-python -m celery -A django-project worker -l info --concurrency=1
+python -m celery -A django-project worker --pool=prefork -l info --concurrency=1
 ```
 
 Checkout and install the transcriber Python application

@@ -153,9 +153,10 @@ def get_initialization_data(request):
     scan_info['available_memory'] = calculate_available_memory()
     logger.info(f"Available memory: {scan_info['available_memory']}")
 
-    # Return transcription results along with the initialization data
-    scan_info['transcriptions'] = prepare_results(request)
-    scan_info['results'] = scan_info['transcriptions']
+    # get transcription status
+    active_transcription = discover_active_transcription()
+    if active_transcription:
+        scan_info['active_transcription'] = active_transcription
 
     return JsonResponse(scan_info)
 
@@ -188,10 +189,32 @@ def remove_link(request):
 
     return JsonResponse({'status': 'success'}, status=200)
 
+def discover_active_transcription():
+    active = transcription_task.app.control.inspect(timeout=2.0).active()
+    if active is None:
+        return None
+
+    for worker, tasks in active.items():
+        for task in tasks:
+            if task['name'] == transcription_task.name and task['id']:
+                started_at = task.get('time_start')
+                metadata_object = {
+                    'task_id': task['id'],
+                    'started_at': started_at * 1000 if started_at is not None else None,
+                }
+                # get the file list and total data size from the task metadata
+                result = transcription_task.AsyncResult(task['id'])
+                metadata = result.info
+                if result.state == "STARTED" and isinstance(metadata, dict):
+                    metadata_object['files'] = metadata.get("files", [])
+                    metadata_object['total_size'] = metadata.get("total_size", 0)
+                return metadata_object
+    return None
+
 def poll_transcription_status(request, task_id):
     # Get the task result
     task_result = transcription_task.AsyncResult(task_id)
-    if task_result.state == 'PENDING':
+    if task_result.state == 'PENDING' or task_result.state == 'STARTED':
         response = {
             'state': task_result.state,
             'status': 'Task is still processing...'

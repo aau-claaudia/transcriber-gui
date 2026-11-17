@@ -130,6 +130,27 @@ function App() {
                     setAvailableMemory(16.0);
                     setModelSize("large-v3");
                 }
+                if (initData.active_transcription) {
+                    const activeTranscription = initData.active_transcription;
+                    if (activeTranscription.task_id && activeTranscription.started_at) {
+                        setTranscriptionId(activeTranscription.task_id)
+                        setTranscriptionStartTime(activeTranscription.started_at)
+
+                        if (activeTranscription.files && activeTranscription.total_size) {
+                            // setting task metadata from Celery
+                            setDataSize(activeTranscription.total_size);
+                            setActiveTask(activeTranscription.files);
+                            setStatusText('Transcription is in progress...');
+                        } else {
+                            setDataSize(0);
+                            setActiveTask([]);
+                            setStatusText('Transcription is waiting to start...');
+                        }
+                        setUploading(false);
+                        setTranscribing(true);
+                        setCurrentPage('upload')
+                    }
+                }
             } catch (err) {
                 console.error('Error fetching initialization data:', err);
                 setError(new Error("There was an error communicating with the server. Please check that the UCloud job is still running."));
@@ -296,7 +317,7 @@ function App() {
                     }
                 });
         } else {
-            console.debug("Transcription task was cancelled.")
+            console.debug("No task ID to poll.")
         }
     }, [dataSize, transcriptionStartTime, files, scannedAndLinkedFiles, transcriptionId]);
 
